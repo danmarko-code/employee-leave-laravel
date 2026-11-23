@@ -1,0 +1,1483 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Request, approve and track employee leave.">
+<meta name="theme-color" content="#E8F0F3">
+<title>Leave system</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'%3E%3Crect width='40' height='40' rx='11' fill='%230B5F70'/%3E%3Crect x='10' y='11' width='20' height='19' rx='4' fill='none' stroke='white' stroke-width='2.4'/%3E%3Cpath d='M10 17h20M16 8.5v5M24 8.5v5' stroke='white' stroke-width='2.4' stroke-linecap='round'/%3E%3Cpath d='m16 24 3 3 6-6' fill='none' stroke='%23F6B93B' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+/* =====================================================================
+   Leave system design tokens
+   Look: frosted glass over a quiet teal / blue / amber field.
+   Glass is spent only where it earns its keep: cards, sidebar, drawer,
+   modal, toasts and the mobile bar. Rows, lists and menus stay near-opaque
+   so scrolling stays cheap. The backdrop is plain radial gradients, never
+   an animated blur.
+   To rebrand: change the colour tokens here and the #logo-mark symbol below.
+   ===================================================================== */
+:root{
+  --tide-950:#061A24; --tide-900:#0A2533; --tide-800:#0F3447;
+  --lagoon:#0F8B8D; --lagoon-700:#0A6E70; --lagoon-100:#CFEAEA; --lagoon-50:#E4F3F3;
+  --sun:#F6B93B; --sun-100:#FDF0D0;
+  --ink:#10212B; --ink-2:#2F434E; --muted:#52646E; --faint:#7C8D97;
+  --line:rgba(15,52,71,.13); --line-2:rgba(15,52,71,.07); --bg:#E8F0F3;
+  --ok:#13804B; --ok-bg:rgba(19,128,75,.13); --warn:#8A5600; --warn-bg:rgba(246,185,59,.26);
+  --bad:#B3342E; --bad-bg:rgba(179,52,46,.11); --off:#4F616B; --off-bg:rgba(79,97,107,.13);
+
+  --glass:rgba(255,255,255,.58);
+  --glass-2:rgba(255,255,255,.8);
+  --glass-edge:rgba(255,255,255,.75);
+  --blur:18px;
+  --sat:saturate(1.5);
+
+  --r-s:8px; --r-m:12px; --r-l:18px; --r-xl:26px;
+  --shadow-card:inset 0 1px 0 rgba(255,255,255,.9),0 0 0 1px rgba(15,52,71,.035),0 12px 32px -16px rgba(8,38,52,.26);
+  --shadow-lift:inset 0 1px 0 rgba(255,255,255,.95),0 0 0 1px rgba(15,52,71,.05),0 18px 38px -16px rgba(8,38,52,.34);
+  --shadow-float:0 28px 64px -22px rgba(6,26,36,.5),0 4px 14px rgba(6,26,36,.1);
+  --ease:cubic-bezier(.2,.7,.2,1);
+  --ease-out:cubic-bezier(.16,1,.3,1);
+}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%;background:var(--bg);color-scheme:light}
+@media (min-width:901px){html{scrollbar-gutter:stable}}
+html.lock{overflow:hidden}
+body{margin:0;color:var(--ink);font:14.5px/1.5 "IBM Plex Sans","Segoe UI",system-ui,-apple-system,Arial,sans-serif;-webkit-font-smoothing:antialiased;font-variant-numeric:tabular-nums}
+/* one static backdrop for the whole app: gives the glass something to refract */
+body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
+  background:
+    radial-gradient(900px 620px at 6% -4%,rgba(15,139,141,.34),transparent 62%),
+    radial-gradient(820px 600px at 104% 8%,rgba(46,111,222,.22),transparent 62%),
+    radial-gradient(900px 680px at 72% 108%,rgba(246,185,59,.30),transparent 62%),
+    radial-gradient(700px 520px at -6% 104%,rgba(19,128,75,.16),transparent 62%),
+    linear-gradient(180deg,#EDF4F6,#E4EDF1)}
+::selection{background:rgba(15,139,141,.25)}
+button,input,textarea{font:inherit;color:inherit}
+h1,h2,h3,p{margin:0}
+a{color:inherit}
+:focus-visible{outline:2px solid var(--lagoon);outline-offset:2px}
+.ic{width:18px;height:18px;flex:none;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.muted{color:var(--muted)}
+.logo{display:block;width:34px;height:34px;flex:none}
+.skip{position:fixed;left:16px;top:-64px;z-index:300;padding:10px 16px;border-radius:var(--r-m);background:var(--tide-950);color:#fff;font-weight:600;text-decoration:none;transition:top .2s var(--ease)}
+.skip:focus{top:16px}
+
+/* ---------- Glass surfaces (one system) ---------- */
+.card,.tbl-wrap,.auth-card,.mbar{
+  background:var(--glass);
+  -webkit-backdrop-filter:blur(var(--blur)) var(--sat);backdrop-filter:blur(var(--blur)) var(--sat);
+  border:1px solid var(--glass-edge);
+  box-shadow:var(--shadow-card)}
+
+/* ---------- Buttons ---------- */
+.btn{--sw-a:rgba(255,255,255,.7);--sw-b:#DDF0F0;position:relative;display:inline-flex;align-items:center;justify-content:center;gap:8px;height:40px;padding:0 18px;border-radius:var(--r-m);border:1px solid rgba(15,52,71,.16);color:var(--ink);font-weight:600;cursor:pointer;white-space:nowrap;box-shadow:0 1px 0 rgba(255,255,255,.8) inset;background-image:linear-gradient(100deg,var(--sw-a) 0,var(--sw-a) 38%,var(--sw-b) 62%,var(--sw-b) 100%);background-size:260% 100%;background-position:0 0;background-repeat:no-repeat;transition:background-position .6s var(--ease),border-color .2s var(--ease),transform .2s var(--ease),box-shadow .2s var(--ease),color .2s}
+.btn:hover{background-position:100% 0;border-color:rgba(15,52,71,.28);transform:translateY(-1px);box-shadow:0 8px 18px -10px rgba(8,38,52,.4)}
+.btn:active{transform:translateY(0) scale(.98);box-shadow:none;transition-duration:.08s}
+.btn .ic{transition:transform .25s var(--ease)}
+.btn:hover .ic{transform:translateY(-1px) scale(1.06)}
+.btn.primary{--sw-a:var(--lagoon-700);--sw-b:#16A5A7;border-color:var(--lagoon-700);color:#fff;box-shadow:0 1px 0 rgba(255,255,255,.18) inset}
+.btn.primary:hover{border-color:#16A5A7;box-shadow:0 10px 20px -10px rgba(15,139,141,.8)}
+.btn.danger{--sw-b:#FADFDD;color:var(--bad);border-color:rgba(179,52,46,.3)}
+.btn.danger:hover{border-color:rgba(179,52,46,.55);box-shadow:0 8px 18px -12px rgba(179,52,46,.6)}
+.btn.solid-danger{--sw-a:var(--bad);--sw-b:#8F2722;border-color:var(--bad);color:#fff}
+.btn.solid-danger:hover{border-color:#8F2722;box-shadow:0 10px 20px -10px rgba(179,52,46,.8)}
+.btn.sm{height:32px;padding:0 13px;font-size:13px;border-radius:var(--r-s)}
+.btn.lg{height:48px;font-size:15px}
+.btn.block{width:100%}
+.btn:disabled{cursor:default}
+.btn .spin{display:none}
+.btn.loading{pointer-events:none}
+.btn.loading .btn-t{visibility:hidden}
+.btn.loading .spin{display:block;position:absolute}
+.spin{width:18px;height:18px;border-radius:50%;border:2px solid rgba(255,255,255,.4);border-top-color:#fff;animation:spin .7s linear infinite}
+/* links: the underline draws in from the left */
+.link{background:linear-gradient(currentColor,currentColor) 0 100%/0 1.5px no-repeat;border:0;padding:0 0 2px;color:var(--lagoon-700);font-weight:600;font-size:13px;cursor:pointer;transition:background-size .28s var(--ease),color .2s}
+.link:hover{background-size:100% 1.5px;color:var(--lagoon)}
+
+/* ---------- Forms ---------- */
+.field{margin-bottom:16px}
+.field>label,.lbl-row label{display:block;font-size:13px;font-weight:600;color:var(--ink-2);margin-bottom:6px}
+.lbl-row{display:flex;justify-content:space-between;align-items:baseline}
+.lbl-row label{margin-bottom:6px}
+.input{width:100%;height:46px;padding:0 13px;border:1px solid rgba(15,52,71,.17);border-radius:var(--r-m);background:rgba(255,255,255,.72);transition:border-color .2s var(--ease),box-shadow .2s var(--ease),background .2s}
+.input:hover{border-color:rgba(15,52,71,.32);background:rgba(255,255,255,.88)}
+.input:focus{outline:none;border-color:var(--lagoon);background:#fff;box-shadow:0 0 0 4px rgba(15,139,141,.17)}
+.input::placeholder{color:var(--faint)}
+.input.area{height:auto;min-height:96px;padding:11px 13px;resize:vertical;line-height:1.5}
+.inp{position:relative}
+.inp>.ic{position:absolute;left:13px;top:50%;transform:translateY(-50%);color:var(--faint);pointer-events:none;transition:color .2s}
+.inp:focus-within>.ic{color:var(--lagoon-700)}
+.inp .input{padding-left:42px}
+.inp .input.has-eye{padding-right:48px}
+.eye{position:absolute;right:5px;top:50%;transform:translateY(-50%);width:36px;height:36px;border:0;background:none;border-radius:var(--r-s);color:var(--muted);cursor:pointer;display:grid;place-items:center;transition:background .2s,color .2s}
+.eye:hover{background:rgba(15,52,71,.08);color:var(--ink)}
+.field.err .input{border-color:var(--bad);box-shadow:0 0 0 4px rgba(179,52,46,.1)}
+.ferr{color:var(--bad);font-size:12.5px;margin-top:5px}
+.ferr:empty{display:none}
+.check{display:flex;align-items:center;gap:10px;font-size:13.5px;color:var(--ink-2);margin:2px 0 20px;cursor:pointer}
+.check input{width:16px;height:16px;accent-color:var(--lagoon-700);margin:0}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.alert{display:flex;gap:10px;align-items:flex-start;padding:11px 13px;border-radius:var(--r-m);font-size:13.5px;margin-bottom:18px;animation:up .35s var(--ease-out) backwards}
+.alert[hidden]{display:none}
+.alert .ic{margin-top:1px}
+.alert.err{background:var(--bad-bg);color:var(--bad)}
+.alert.info{background:rgba(15,139,141,.12);color:var(--lagoon-700)}
+
+/* ---------- Scrollable dropdown (custom select) ---------- */
+.sel{position:relative}
+.sel-btn{display:flex;align-items:center;justify-content:space-between;gap:10px;width:100%;height:46px;padding:0 13px;border:1px solid rgba(15,52,71,.17);border-radius:var(--r-m);background:rgba(255,255,255,.72);text-align:left;cursor:pointer;transition:border-color .2s var(--ease),box-shadow .2s var(--ease),background .2s}
+.sel-btn:hover{border-color:rgba(15,52,71,.32);background:rgba(255,255,255,.9)}
+.sel.open .sel-btn,.sel-btn:focus-visible{outline:none;border-color:var(--lagoon);background:#fff;box-shadow:0 0 0 4px rgba(15,139,141,.17)}
+.sel-val{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sel-val.is-empty{color:var(--faint)}
+.sel-chev{color:var(--muted);transition:transform .25s var(--ease)}
+.sel.open .sel-chev{transform:rotate(180deg)}
+.sel-list{position:absolute;z-index:60;top:calc(100% + 8px);left:0;right:0;min-width:100%;max-height:224px;overflow-y:auto;overscroll-behavior:contain;margin:0;padding:6px;list-style:none;background:#FBFEFE;border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow-float);visibility:hidden;opacity:0;transform:translateY(-8px) scale(.97);transform-origin:top;transition:opacity .16s,transform .2s var(--ease-out),visibility 0s .2s;scrollbar-width:thin;scrollbar-color:rgba(15,52,71,.25) transparent}
+.sel-list::-webkit-scrollbar{width:8px}
+.sel-list::-webkit-scrollbar-thumb{background:rgba(15,52,71,.22);border-radius:4px;border:2px solid #fff}
+.sel.open .sel-list{visibility:visible;opacity:1;transform:none;transition:opacity .16s,transform .26s var(--ease-out)}
+.sel.up .sel-list{top:auto;bottom:calc(100% + 8px);transform-origin:bottom}
+.sel-list li{display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:var(--r-s);cursor:pointer;transition:background .15s,transform .2s var(--ease)}
+.sel-list li .o-main{flex:1;min-width:0}
+.sel-list li .o-sub{display:block;font-size:12.5px;color:var(--muted)}
+.sel-list li .ic{width:16px;height:16px;color:var(--lagoon-700);opacity:0}
+.sel-list li[aria-selected=true]{font-weight:600}
+.sel-list li[aria-selected=true] .ic{opacity:1}
+.sel-list li.active,.sel-list li:hover{background:var(--lagoon-50)}
+.sel-list li:hover{transform:translateX(2px)}
+
+/* ---------- Status, tags, avatar ---------- */
+.pill{display:inline-flex;align-items:center;gap:6px;padding:3px 11px 3px 9px;border-radius:999px;font-size:12.5px;font-weight:600;line-height:1.4;white-space:nowrap}
+.pill i{width:6px;height:6px;border-radius:50%;background:currentColor}
+.pill.pending{color:var(--warn);background:var(--warn-bg)}
+.pill.pending i{animation:pulse 1.6s ease-in-out infinite}
+.pill.approved{color:var(--ok);background:var(--ok-bg)}
+.pill.rejected{color:var(--bad);background:var(--bad-bg)}
+.pill.cancelled{color:var(--off);background:var(--off-bg)}
+.tag{display:inline-block;padding:3px 10px;border-radius:var(--r-s);background:rgba(15,52,71,.07);color:var(--ink-2);font-size:12.5px;font-weight:600}
+.av{width:32px;height:32px;border-radius:50%;display:inline-grid;place-items:center;color:#fff;font-weight:700;font-size:12px;flex:none;box-shadow:0 0 0 2px rgba(255,255,255,.75)}
+.av.lg{width:44px;height:44px;font-size:14px}
+
+/* ---------- Auth screen ---------- */
+/* Plain white and data-free: nothing about balances, people or requests is shown before sign-in.
+   Locked to the real viewport so the page never scrolls; only this container can, on very short windows. */
+html.on-auth{overflow:hidden;scrollbar-gutter:auto;background:#fff}
+html.on-auth body{height:100vh;height:100dvh;overflow:hidden}
+html.on-auth body::before{display:none}
+.auth{display:flex;height:100vh;height:100dvh;padding:24px;overflow-x:hidden;overflow-y:auto;background:#fff;scrollbar-width:none}
+.auth::-webkit-scrollbar{display:none}
+.wordmark{display:flex;align-items:center;gap:11px;color:inherit}
+.wordmark b{display:block;font-size:17px;letter-spacing:-.01em;font-weight:600;line-height:1.1}
+.auth-card{margin:auto;width:100%;max-width:420px;padding:40px 36px;border-radius:var(--r-xl);background:#fff;border:1px solid #DFE7EB;box-shadow:0 1px 2px rgba(8,38,52,.04),0 28px 56px -32px rgba(8,38,52,.24);-webkit-backdrop-filter:none;backdrop-filter:none;animation:up .6s var(--ease-out) backwards}
+.auth-card.shake{animation:shake .4s}
+.auth-brand{display:flex;margin-bottom:30px;color:var(--ink)}
+.auth-card h1{font-size:28px;letter-spacing:-.025em;font-weight:600}
+.auth-card .sub{color:var(--muted);margin:6px 0 24px}
+.auth-card .input{background:#fff}
+.auth-card .input:hover{background:#fff}
+.btn-t{display:inline-flex;align-items:center;gap:8px}
+.btn:hover .btn-t .ic{transform:translateX(3px)}
+.demo{margin-top:24px;padding-top:20px;border-top:1px solid var(--line)}
+.demo-l{font-size:13px;font-weight:600;color:var(--ink-2);margin-bottom:10px}
+.accts{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.acct{display:flex;align-items:center;gap:9px;min-width:0;padding:8px 10px;border-radius:var(--r-m);border:1px solid rgba(15,52,71,.15);background:#fff;text-align:left;cursor:pointer;transition:border-color .2s var(--ease),transform .2s var(--ease),box-shadow .2s var(--ease)}
+.acct>span{min-width:0}
+.acct:hover{border-color:rgba(15,52,71,.32);transform:translateY(-1px);box-shadow:0 8px 18px -12px rgba(8,38,52,.45)}
+.acct:active{transform:scale(.98);transition-duration:.08s}
+.acct.on{border-color:var(--lagoon);box-shadow:0 0 0 3px rgba(15,139,141,.17)}
+.acct .av{width:28px;height:28px;font-size:11px;box-shadow:none}
+.acct b{display:block;font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.acct small{display:block;font-size:11.5px;color:var(--muted)}
+.hint{font-size:12.5px;color:var(--muted);margin-top:12px}
+.hint b{color:var(--ink-2);font-weight:600;user-select:all}
+/* short windows: tighten before anything can overflow */
+@media (max-height:760px){
+  .auth-card{padding:28px 30px}
+  .auth-brand{margin-bottom:20px}
+  .auth-card .sub{margin-bottom:18px}
+  .field{margin-bottom:12px}
+  .check{margin-bottom:16px}
+  .demo{margin-top:18px;padding-top:16px}
+}
+@media (max-height:700px){
+  .auth-card{padding:22px 26px}
+  .auth-brand{margin-bottom:14px}
+  .auth-card h1{font-size:24px}
+  .auth-card .sub{margin:4px 0 14px}
+  .auth-card .input{height:42px}
+  .auth-card .btn.lg{height:44px}
+  .field{margin-bottom:10px}
+  .check{margin:0 0 12px}
+  .demo{margin-top:14px;padding-top:12px}
+  .demo-l{margin-bottom:8px}
+  .auth{padding:14px 24px}
+  .acct{padding:6px 9px}
+  .hint{margin-top:8px}
+}
+@media (max-height:640px){
+  .auth-card .sub{display:none}
+  .auth-card h1{margin-bottom:12px}
+  .accts{grid-template-columns:repeat(4,1fr)}
+  .acct{justify-content:center;padding:6px}
+  .acct>span{display:none}
+}
+
+/* ---------- App shell ---------- */
+.shell{display:grid;grid-template-columns:272px minmax(0,1fr);min-height:100vh}
+.side{position:sticky;top:12px;height:calc(100vh - 24px);margin:12px 0 12px 12px;border-radius:22px;
+  background:linear-gradient(180deg,rgba(12,48,66,.84),rgba(6,26,36,.9));
+  -webkit-backdrop-filter:blur(24px) saturate(1.4);backdrop-filter:blur(24px) saturate(1.4);
+  border:1px solid rgba(255,255,255,.1);box-shadow:inset 0 1px 0 rgba(255,255,255,.12),0 26px 50px -26px rgba(6,26,36,.7);
+  color:#C8D8E0;display:flex;flex-direction:column;padding:18px 12px 14px;z-index:30;animation:slide-in .6s var(--ease-out) backwards}
+.side .wordmark{padding:4px 10px 22px;color:#fff}
+.nav{position:relative;display:flex;flex-direction:column;gap:4px}
+.nav-ind{position:absolute;left:0;right:0;top:0;height:42px;border-radius:var(--r-m);background:linear-gradient(180deg,rgba(255,255,255,.25),rgba(255,255,255,.09));box-shadow:inset 0 1px 0 rgba(255,255,255,.4),inset 0 -1px 0 rgba(255,255,255,.05),0 0 0 1px rgba(255,255,255,.15),0 12px 22px -14px rgba(0,0,0,.6);pointer-events:none;will-change:transform,height}
+.nav-ind::after{content:"";position:absolute;inset:0;border-radius:inherit;background:linear-gradient(105deg,transparent 22%,rgba(255,255,255,.17) 46%,transparent 72%)}
+/* the indicator is moved by script (see moveNavInd) so the two edges can travel at different times */
+.nav-item,.ubtn{--sw:linear-gradient(100deg,rgba(95,216,212,.26) 0,rgba(255,255,255,.13) 44%,transparent 56%)}
+.nav-item{position:relative;display:flex;align-items:center;gap:12px;height:42px;padding:0 12px;border-radius:var(--r-m);color:#A9BEC9;text-decoration:none;font-weight:500;background-image:var(--sw);background-size:250% 100%;background-position:100% 0;background-repeat:no-repeat;transition:color .2s,background-position .6s var(--ease),padding-left .25s var(--ease)}
+.nav-item:not(.active):hover{color:#fff;background-position:0 0;padding-left:15px}
+.nav-item.active{color:#fff;font-weight:600;transition:color .3s var(--ease) .14s,background-position .6s var(--ease),padding-left .25s var(--ease)}
+
+.nav-item .ic{transition:transform .25s var(--ease)}
+.nav-item:hover .ic{transform:scale(1.08)}
+.badge{margin-left:auto;min-width:22px;height:22px;padding:0 7px;border-radius:11px;background:var(--sun);color:#3B2A00;font-size:12px;font-weight:700;display:grid;place-items:center}
+.badge[hidden]{display:none}
+.side-note{margin:auto 0 12px;padding:12px;border-radius:var(--r-m);background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.06);font-size:12.5px;color:#9FB6C2;line-height:1.45}
+.side-foot{position:relative}
+.ubtn{display:flex;align-items:center;gap:10px;width:100%;padding:8px;border-radius:var(--r-m);border:0;background-color:transparent;background-image:var(--sw);background-size:250% 100%;background-position:100% 0;background-repeat:no-repeat;color:#fff;text-align:left;cursor:pointer;transition:background-position .6s var(--ease),transform .2s}
+.ubtn:hover{background-position:0 0}
+.ubtn:active{transform:scale(.99)}
+.ubtn .meta{min-width:0;flex:1}
+.ubtn b{display:block;font-size:13.5px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ubtn small{display:block;color:#9FB6C2;font-size:12px}
+.ubtn .ic{color:#9FB6C2;transition:transform .25s var(--ease)}
+.ubtn[aria-expanded=true] .ic{transform:rotate(180deg)}
+.umenu{position:absolute;left:0;right:0;bottom:calc(100% + 8px);background:#FBFEFE;color:var(--ink);border-radius:14px;padding:6px;box-shadow:var(--shadow-float);opacity:0;visibility:hidden;transform:translateY(8px) scale(.97);transform-origin:bottom;transition:opacity .15s,transform .2s var(--ease-out),visibility 0s .2s}
+.umenu.open{opacity:1;visibility:visible;transform:none;transition:opacity .15s,transform .26s var(--ease-out)}
+.umenu button{display:flex;align-items:center;gap:10px;width:100%;height:38px;padding:0 10px;border:0;background:none;border-radius:var(--r-s);cursor:pointer;font-weight:500;text-align:left;transition:background .15s,padding-left .2s var(--ease)}
+.umenu button:hover{background:rgba(15,52,71,.07);padding-left:13px}
+.umenu button.out{color:var(--bad)}
+.umenu button.out:hover{background:var(--bad-bg)}
+.main-wrap{min-width:0}
+.mbar{display:none}
+.page{max-width:1120px;margin:0 auto;padding:36px 44px 80px;outline:none}
+.ph{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-bottom:26px}
+.ph h1{font-size:28px;letter-spacing:-.025em;font-weight:600;line-height:1.15}
+.ph p{color:var(--muted);margin-top:4px}
+.sh{display:flex;align-items:center;justify-content:space-between;margin:34px 0 12px}
+.sh h2{font-size:16px;font-weight:600;letter-spacing:-.01em}
+
+/* view entrance: runs once when the view changes, never on scroll */
+.view-in :is(.ph,.sh,.toolbar,.tbl-wrap,.card){animation:up .55s var(--ease-out) backwards;animation-delay:calc((var(--i,0) + var(--j,0)) * 55ms)}
+.view-in>:nth-child(2){--i:1}.view-in>:nth-child(3){--i:2}.view-in>:nth-child(4){--i:3}.view-in>:nth-child(5){--i:4}.view-in>:nth-child(6){--i:5}
+.view-in :is(.bal-grid,.stats,.apply-grid)>:nth-child(2){--j:1}
+.view-in :is(.bal-grid,.stats,.apply-grid)>:nth-child(3){--j:2}
+.view-in :is(.bal-grid,.stats,.apply-grid)>:nth-child(4){--j:3}
+
+/* ---------- Cards and data ---------- */
+.card{border-radius:var(--r-l);padding:22px}
+.bal,.stat,.next{transition:transform .3s var(--ease),box-shadow .3s var(--ease),background .3s var(--ease)}
+.bal:hover,.stat:hover,.next:hover{transform:translateY(-2px);background:var(--glass-2);box-shadow:var(--shadow-lift)}
+.bal-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(290px,1fr));gap:16px}
+.bal{display:flex;gap:20px;align-items:center}
+.ring-wrap{position:relative;width:104px;height:104px;flex:none}
+.ring{width:100%;height:100%;transform:rotate(-90deg)}
+.ring circle{fill:none;stroke-width:9;stroke-linecap:round}
+.ring .track{stroke:rgba(15,52,71,.09)}
+.arc{transition:stroke-dasharray 1.1s var(--ease-out)}
+.ring-c{position:absolute;inset:0;display:grid;place-content:center;text-align:center}
+.ring-c strong{font-size:27px;font-weight:600;letter-spacing:-.03em;line-height:1}
+.ring-c span{font-size:11.5px;color:var(--muted);margin-top:3px}
+.bal-body{flex:1;min-width:0}
+.bal h3{font-size:15px;font-weight:600;margin-bottom:2px}
+.bal .of{font-size:12.5px;color:var(--muted);margin-bottom:10px}
+.legend{display:grid;gap:5px;font-size:13px}
+.legend div{display:flex;align-items:center;gap:8px;color:var(--muted)}
+.legend i{width:8px;height:8px;border-radius:50%;flex:none}
+.legend b{margin-left:auto;color:var(--ink);font-weight:600}
+.next{display:flex;flex-direction:column;gap:14px;cursor:pointer}
+.next h3{font-size:15px;font-weight:600}
+.next-row{display:flex;gap:14px;align-items:center}
+.datebox{width:58px;padding:8px 0;border-radius:var(--r-m);background:rgba(15,139,141,.13);color:var(--lagoon-700);text-align:center;flex:none;transition:background .3s,color .3s}
+.next:hover .datebox{background:var(--lagoon-700);color:#fff}
+.datebox b{display:block;font-size:22px;line-height:1.1;font-weight:600}
+.datebox span{font-size:12px;font-weight:600}
+.next-t{font-weight:600}
+.next-foot{display:flex;align-items:center;gap:10px;margin-top:auto}
+.next.empty-next{cursor:default}
+.next.empty-next:hover{transform:none;background:var(--glass);box-shadow:var(--shadow-card)}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px}
+.stat .n{font-size:34px;font-weight:600;letter-spacing:-.03em;line-height:1.1}
+.stat .l{color:var(--muted);font-size:13px;margin-top:2px}
+.stat.hl{background:linear-gradient(160deg,#10405A,#0A2533);border-color:rgba(255,255,255,.12);color:#fff;-webkit-backdrop-filter:none;backdrop-filter:none;box-shadow:inset 0 1px 0 rgba(255,255,255,.14),0 16px 34px -16px rgba(6,26,36,.7)}
+.stat.hl:hover{background:linear-gradient(160deg,#134A68,#0C2B3C);box-shadow:inset 0 1px 0 rgba(255,255,255,.16),0 22px 40px -16px rgba(6,26,36,.8)}
+.stat.hl .l{color:#A9C1CC}
+.tbl-wrap{overflow-x:auto;border-radius:var(--r-l);background:var(--glass-2)}
+table.tbl{width:100%;border-collapse:collapse;min-width:600px}
+.tbl th{text-align:left;font-size:12.5px;font-weight:600;color:var(--muted);padding:12px 16px;border-bottom:1px solid var(--line);background:rgba(255,255,255,.45);white-space:nowrap}
+.tbl td{padding:13px 16px;border-bottom:1px solid var(--line-2);vertical-align:middle}
+.tbl tr:last-child td{border-bottom:0}
+.tbl .num{text-align:right}
+.tbl tbody tr.click{cursor:pointer}
+.tbl tbody tr.click td{transition:background .2s var(--ease),box-shadow .25s var(--ease)}
+.tbl tbody tr.click:hover td{background:rgba(15,139,141,.08)}
+.tbl tbody tr.click:hover td:first-child{box-shadow:inset 3px 0 0 var(--lagoon)}
+.tbl tbody tr.click:active td{background:rgba(15,139,141,.14)}
+.tbl tbody tr.click:focus-visible{outline-offset:-2px}
+.tbl tbody tr.off td{opacity:.6}
+.cell-user{display:flex;align-items:center;gap:12px}
+.cell-user b{display:block;font-weight:600}
+.cell-user small{display:block;color:var(--muted);font-size:12.5px}
+.row-flash td{animation:rowflash 2.2s ease}
+.empty{padding:46px 20px;text-align:center;color:var(--muted)}
+.empty::before{content:"";display:block;width:46px;height:46px;margin:0 auto 14px;border-radius:50%;background:rgba(15,139,141,.12) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%230A6E70' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='3' y='4' width='18' height='18' rx='2'/%3E%3Cpath d='M16 2v4M8 2v4M3 10h18'/%3E%3C/svg%3E") center/22px no-repeat}
+.empty h3{color:var(--ink);font-size:16px;font-weight:600;margin-bottom:4px}
+.empty .btn{margin-top:16px}
+.toolbar{display:flex;gap:12px;align-items:center;margin-bottom:12px;flex-wrap:wrap}
+.toolbar .sel{width:220px}
+.toolbar .search{width:260px}
+.toolbar .count{margin-left:auto;color:var(--muted);font-size:13px}
+.switch{position:relative;width:44px;height:26px;border-radius:13px;border:0;background:rgba(15,52,71,.22);cursor:pointer;padding:0;transition:background .25s var(--ease),box-shadow .25s}
+.switch:hover{box-shadow:0 0 0 4px rgba(15,139,141,.14)}
+.switch::after{content:"";position:absolute;top:3px;left:3px;width:20px;height:20px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.3);transition:transform .3s var(--ease-out),width .2s var(--ease)}
+.switch:active::after{width:24px}
+.switch[aria-checked=true]{background:var(--lagoon)}
+.switch[aria-checked=true]::after{transform:translateX(18px)}
+.switch[aria-checked=true]:active::after{transform:translateX(14px)}
+.sw-cell{display:flex;align-items:center;gap:10px}
+.feed{list-style:none;margin:0;padding:0;max-width:720px}
+.feed li{position:relative;display:flex;gap:16px;padding:0 0 18px 24px}
+.feed li::before{content:"";position:absolute;left:4px;top:7px;bottom:-3px;width:2px;background:var(--line)}
+.feed li:last-child::before{display:none}
+.feed li i{position:absolute;left:0;top:5px;width:10px;height:10px;border-radius:50%;background:var(--lagoon);box-shadow:0 0 0 3px rgba(15,139,141,.16)}
+.feed .when{width:96px;flex:none;color:var(--muted);font-size:13px;padding-top:1px}
+
+/* ---------- Apply form ---------- */
+.apply-grid{display:grid;grid-template-columns:minmax(0,1fr) 330px;gap:24px;align-items:start}
+.chips{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:-4px 0 18px}
+.chips span{font-size:13px;color:var(--muted);margin-right:2px}
+.chip{--sw-a:rgba(255,255,255,.7);--sw-b:var(--lagoon-100);height:32px;padding:0 13px;border-radius:999px;border:1px solid rgba(15,52,71,.16);background-image:linear-gradient(100deg,var(--sw-a) 0,var(--sw-a) 38%,var(--sw-b) 62%,var(--sw-b) 100%);background-size:260% 100%;background-position:0 0;background-repeat:no-repeat;font-size:13px;font-weight:600;color:var(--ink-2);cursor:pointer;transition:background-position .55s var(--ease),border-color .2s,color .2s,transform .2s var(--ease)}
+.chip:hover{background-position:100% 0;border-color:var(--lagoon);color:var(--lagoon-700);transform:translateY(-1px)}
+.chip:active{transform:scale(.96)}
+.reason-pick{margin-bottom:10px}
+.form-foot{display:flex;gap:10px;margin-top:6px}
+.sum{position:sticky;top:24px}
+.sum h3{font-size:15px;font-weight:600;margin-bottom:8px}
+.sum .row{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--line-2)}
+.sum .row>:first-child{color:var(--muted)}
+.who{display:flex;align-items:center;gap:8px;font-weight:600}
+.who .av{width:24px;height:24px;font-size:10px}
+.bar{display:flex;height:8px;border-radius:4px;background:rgba(15,52,71,.1);overflow:hidden;margin-top:14px}
+.bar i{display:block;height:100%;transition:width .5s var(--ease-out)}
+.bar .after{background:var(--lagoon)}
+.bar .this{background:var(--sun)}
+.bar-l{display:flex;gap:14px;margin-top:8px;font-size:12px;color:var(--muted)}
+.bar-l span::before{content:"";display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px;background:var(--lagoon)}
+.bar-l span+span::before{background:var(--sun)}
+.issues{list-style:none;margin:16px 0 0;padding:0;display:grid;gap:8px}
+.issues li{display:flex;gap:8px;font-size:13px;color:var(--bad);align-items:flex-start}
+.issues .ic{width:16px;height:16px;margin-top:2px}
+.ok-line{display:flex;gap:8px;align-items:center;color:var(--ok);font-weight:600;margin-top:16px;font-size:13.5px}
+.hint-line{color:var(--muted);font-size:13px;margin-top:16px}
+.callout{display:flex;gap:10px;padding:10px 12px;border-radius:var(--r-m);background:var(--warn-bg);color:var(--warn);font-size:13.5px;margin-top:16px}
+.callout.info{background:rgba(15,139,141,.12);color:var(--lagoon-700)}
+.callout .ic{margin-top:2px}
+
+/* ---------- Overlays: drawer and modal ---------- */
+.overlay-root{position:fixed;inset:0;z-index:100;pointer-events:none}
+.overlay-root.open{pointer-events:auto}
+.scrim{position:absolute;inset:0;background:rgba(6,26,36,.34);-webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px);opacity:0;transition:opacity .25s ease}
+.overlay-root.open .scrim{opacity:1;transition:opacity .4s ease}
+.drawer{position:absolute;top:10px;right:10px;bottom:10px;width:min(470px,calc(100vw - 20px));border-radius:var(--r-xl);background:rgba(250,253,254,.8);-webkit-backdrop-filter:blur(26px) saturate(1.5);backdrop-filter:blur(26px) saturate(1.5);border:1px solid var(--glass-edge);display:flex;flex-direction:column;overflow:hidden;transform:translateX(calc(100% + 24px));transition:transform .28s cubic-bezier(.5,0,.75,0);box-shadow:var(--shadow-float);outline:none}
+.overlay-root.open .drawer{transform:none;transition:transform .5s var(--ease-out)}
+.dr-head{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:18px 20px 18px 24px;border-bottom:1px solid var(--line)}
+.dr-head h2{font-size:17px;font-weight:600}
+.x{width:34px;height:34px;border:0;background:none;border-radius:var(--r-s);display:grid;place-items:center;color:var(--muted);cursor:pointer;transition:background .2s,color .2s,transform .25s var(--ease)}
+.x:hover{background:rgba(15,52,71,.08);color:var(--ink);transform:rotate(90deg)}
+.x:active{transform:rotate(90deg) scale(.92)}
+.dr-body{flex:1;overflow-y:auto;padding:22px 24px;scrollbar-width:thin}
+.dr-foot{display:flex;gap:10px;padding:16px 24px;border-top:1px solid var(--line);background:rgba(255,255,255,.4)}
+.dr-foot .btn{flex:1}
+.dr-who{display:flex;align-items:center;gap:12px;margin-bottom:18px}
+.dr-who b{display:block;font-size:15px;font-weight:600}
+.dr-who small{color:var(--muted)}
+.dl{display:grid;grid-template-columns:110px 1fr;gap:12px 16px;margin:0 0 24px}
+.dl dt{color:var(--muted)}
+.dl dd{margin:0;word-break:break-word}
+.dr-h{font-size:13px;font-weight:600;margin:0 0 12px;color:var(--ink-2)}
+.tl{list-style:none;margin:0 0 20px;padding:0}
+.tl li{position:relative;padding:0 0 18px 28px}
+.tl li::before{content:"";position:absolute;left:5px;top:8px;bottom:-4px;width:2px;background:var(--line)}
+.tl li:last-child::before{display:none}
+.tl li i{position:absolute;left:0;top:4px;width:12px;height:12px;border-radius:50%;background:#fff;border:2px solid var(--lagoon)}
+.tl li.done i{background:var(--lagoon)}
+.tl li.wait i{border-color:var(--sun);animation:pulse 1.6s ease-in-out infinite}
+.tl li.bad i{background:var(--bad);border-color:var(--bad)}
+.tl li.off i{background:#AEBBC4;border-color:#AEBBC4}
+.tl b{display:block;font-weight:600}
+.tl small{color:var(--muted)}
+.quote{margin-top:8px;padding:10px 12px;border-left:3px solid var(--lagoon-100);background:rgba(255,255,255,.55);border-radius:0 var(--r-s) var(--r-s) 0;color:var(--ink-2);font-size:13.5px}
+.impact{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:12px 14px;border-radius:var(--r-m);background:rgba(15,139,141,.1);margin-bottom:4px}
+.impact span{color:var(--muted);font-size:13px}
+.impact b{font-size:15px;font-weight:600}
+.modal-wrap{position:absolute;inset:0;display:grid;place-items:center;padding:20px;pointer-events:none}
+.modal{pointer-events:auto;width:min(424px,100%);background:rgba(252,254,254,.86);-webkit-backdrop-filter:blur(28px) saturate(1.5);backdrop-filter:blur(28px) saturate(1.5);border:1px solid var(--glass-edge);border-radius:var(--r-xl);padding:28px;box-shadow:var(--shadow-float);transform:translateY(18px) scale(.94);opacity:0;transition:transform .2s cubic-bezier(.5,0,.75,0),opacity .18s ease}
+.overlay-root.open .modal{transform:none;opacity:1;transition:transform .5s var(--ease-out),opacity .28s ease}
+.modal-ic{width:44px;height:44px;border-radius:var(--r-m);display:grid;place-items:center;background:rgba(15,139,141,.13);color:var(--lagoon-700);margin-bottom:16px}
+.modal-ic .ic{width:22px;height:22px}
+.modal.danger .modal-ic{background:var(--bad-bg);color:var(--bad)}
+.modal h3{font-size:19px;font-weight:600;letter-spacing:-.01em;margin-bottom:8px}
+.modal p{color:var(--muted)}
+.modal-foot{display:flex;justify-content:flex-end;gap:10px;margin-top:24px}
+.modal-ic,.modal h3,.modal p,.modal-foot{opacity:0;transform:translateY(8px);transition:opacity .15s,transform .15s}
+.overlay-root.open .modal-ic,.overlay-root.open .modal h3,.overlay-root.open .modal p,.overlay-root.open .modal-foot{opacity:1;transform:none;transition:opacity .4s ease,transform .5s var(--ease-out)}
+.overlay-root.open .modal h3{transition-delay:.05s}
+.overlay-root.open .modal p{transition-delay:.09s}
+.overlay-root.open .modal-foot{transition-delay:.13s}
+
+/* ---------- Toasts ---------- */
+#toasts{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);display:grid;justify-items:center;gap:10px;z-index:200;pointer-events:none}
+.toast{position:relative;overflow:hidden;display:flex;align-items:center;gap:10px;min-width:260px;max-width:400px;padding:13px 16px;border-radius:var(--r-m);background:rgba(7,30,42,.84);-webkit-backdrop-filter:blur(16px) saturate(1.4);backdrop-filter:blur(16px) saturate(1.4);border:1px solid rgba(255,255,255,.12);color:#fff;box-shadow:var(--shadow-float);transform:translateY(16px) scale(.96);opacity:0;transition:transform .45s var(--ease-out),opacity .3s}
+.toast.in{transform:none;opacity:1}
+.toast .ic{color:#5CD6A0}
+.toast.err .ic{color:#FF9A93}
+.toast-bar{position:absolute;left:0;right:0;bottom:0;height:2px;background:rgba(255,255,255,.35);transform-origin:left;animation:drain 4.2s linear forwards}
+.nav-scrim{display:none}
+
+/* ---------- Motion ---------- */
+@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes fadein{from{opacity:0}to{opacity:1}}
+@keyframes up{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
+@keyframes slide-in{from{opacity:0;transform:translateX(-14px)}to{opacity:1;transform:none}}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
+@keyframes shake{0%,100%{transform:none}20%{transform:translateX(-8px)}40%{transform:translateX(7px)}60%{transform:translateX(-5px)}80%{transform:translateX(3px)}}
+@keyframes rowflash{0%{background:rgba(246,185,59,.4)}100%{background:transparent}}
+@keyframes drain{to{transform:scaleX(0)}}
+@media (prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation-duration:.01ms!important;animation-delay:0s!important;transition-duration:.01ms!important;transition-delay:0s!important}
+}
+
+/* ---------- Glass fallbacks ---------- */
+@supports not ((backdrop-filter:blur(1px)) or (-webkit-backdrop-filter:blur(1px))){
+  :root{--glass:rgba(255,255,255,.9);--glass-2:rgba(255,255,255,.96)}
+  .side{background:#0A2533}
+  .drawer,.modal{background:#FCFEFE}
+  .toast{background:#071E2A}
+}
+@media (prefers-reduced-transparency:reduce){
+  :root{--glass:rgba(255,255,255,.94);--glass-2:rgba(255,255,255,.98)}
+  .card,.tbl-wrap,.auth-card,.mbar,.side,.drawer,.modal,.toast,.scrim{-webkit-backdrop-filter:none;backdrop-filter:none}
+  .side{background:#0A2533}
+  .drawer,.modal{background:#FCFEFE}
+  .toast{background:#071E2A}
+}
+
+/* ---------- Reports, upload, print ---------- */
+.print-only{display:none}
+.input.file{height:auto;padding:9px 13px}
+.field[hidden]{display:none}
+@media print{
+  body::before,.side,.mbar,.no-print,.toolbar,#toasts,.skip,.overlay-root,.nav-scrim{display:none!important}
+  .shell{display:block}.page{max-width:none;padding:0}
+  .card,.tbl-wrap{background:#fff!important;box-shadow:none!important;-webkit-backdrop-filter:none!important;backdrop-filter:none!important;border:1px solid #bbb}
+  .tbl-wrap{overflow:visible}table.tbl{min-width:0}
+  .print-only{display:block;margin-bottom:12px}
+  .stat.hl{background:#fff!important;color:#000!important}.stat.hl .l{color:#444}
+}
+/* ---------- Responsive ---------- */
+@media (max-width:1000px){
+  .apply-grid{grid-template-columns:1fr}
+  .sum{position:static}
+}
+@media (max-width:900px){
+  :root{--blur:12px}
+  .shell{grid-template-columns:1fr}
+  .side{position:fixed;left:0;top:0;bottom:0;width:284px;height:auto;margin:0;border-radius:0 22px 22px 0;transform:translateX(-100%);transition:transform .4s var(--ease-out);animation:none}
+  .shell.nav-open .side{transform:none;box-shadow:var(--shadow-float)}
+  .shell.nav-open .nav-scrim{display:block;position:fixed;inset:0;background:rgba(6,26,36,.4);-webkit-backdrop-filter:blur(3px);backdrop-filter:blur(3px);z-index:25;animation:fadein .3s}
+  .mbar{display:flex;align-items:center;gap:12px;padding:8px 12px;margin:10px 12px 0;border-radius:var(--r-l);position:sticky;top:10px;z-index:20}
+  .mbar .wordmark b{font-size:16px}
+  .mbar .logo{width:30px;height:30px}
+  .mbar .x{margin-left:-4px;color:var(--ink)}
+  .page{padding:24px 16px 70px}
+}
+@media (max-width:560px){
+  .row2{grid-template-columns:1fr}
+  .toolbar .sel,.toolbar .search{width:100%}
+  .toolbar .count{margin-left:0}
+  .bal{gap:16px}
+  .auth{padding:16px}
+  .auth-card{padding:30px 22px;border-radius:var(--r-l)}
+  .acct small{display:none}
+  #toasts{left:16px;right:16px;bottom:16px;transform:none}
+  .toast{max-width:none;width:100%}
+  .dl{grid-template-columns:90px 1fr}
+  .drawer{top:0;right:0;bottom:0;width:100vw;border-radius:var(--r-xl) 0 0 var(--r-xl)}
+}
+</style>
+</head>
+<body>
+
+<!-- Logo: replace this symbol with your company logo (keep the id). -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+  <defs>
+    <linearGradient id="lg-mark" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#14A0A2"/><stop offset="1" stop-color="#0B4F63"/>
+    </linearGradient>
+  </defs>
+  <symbol id="logo-mark" viewBox="0 0 40 40">
+    <rect width="40" height="40" rx="11" fill="url(#lg-mark)"/>
+    <rect x="10" y="11" width="20" height="19" rx="4" fill="none" stroke="#fff" stroke-width="2.4"/>
+    <path d="M10 17h20M16 8.5v5M24 8.5v5" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round"/>
+    <path d="m16 24 3 3 6-6" fill="none" stroke="#F6B93B" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
+  </symbol>
+</svg>
+<a class="skip" href="#" data-act="skip">Skip to content</a>
+
+<div id="app"></div>
+<div class="overlay-root" id="drawerRoot"></div>
+<div class="overlay-root" id="modalRoot"></div>
+<div id="toasts" role="status" aria-live="polite"></div>
+<noscript><p style="padding:24px">This app needs JavaScript to run.</p></noscript>
+
+<script>
+/* =====================================================================
+   Leave system: front-end prototype
+   - Authentication is a DEMO: credentials are checked in the browser against
+     salted SHA-256 hashes, sessions live in browser storage. It shows the full
+     flow (validation, lockout, session expiry, idle timeout, role guards) but is
+     not secure. For production, move login, sessions and data behind a server
+     API (HTTP-only cookies or OIDC/SSO) and enforce every rule server-side.
+   - Data (users, requests, balances) is stored in this browser only.
+   ===================================================================== */
+'use strict';
+
+/* ---------- config ---------- */
+const DEMO_PASSWORD = 'Leave@2026';
+/* Prototype only. Set DEMO_MODE to false (and delete DEMO_PASSWORD) to hide the sample accounts and the shared password from the sign-in screen. */
+const DEMO_MODE = true;
+const IDLE_MS = 30 * 60 * 1000;
+const MAX_ATTEMPTS = 5, LOCK_SECONDS = 30;
+const KEY_DB = 'leavesystem.db.v1', KEY_S = 'leavesystem.session.v1';
+const REDUCE = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
+const ROLE = { employee: 'Employee', admin: 'Administrator' };
+const RING_R = 42, RING_C = 2 * Math.PI * RING_R;
+const REASONS = ['Family event', 'Medical appointment', 'Personal errand', 'Rest and recovery', 'Travel', 'Government or bank paperwork', 'School or training commitment', 'Moving or home repairs'];
+
+/* ---------- SHA-256 (sync, for the demo credential check) ---------- */
+const SHA_K = [], SHA_H = [];
+(function(){
+  let n = 2;
+  while (SHA_K.length < 64) {
+    let p = true;
+    for (let i = 2; i * i <= n; i++) if (n % i === 0) { p = false; break; }
+    if (p) {
+      if (SHA_H.length < 8) SHA_H.push(Math.floor((Math.sqrt(n) % 1) * 4294967296) | 0);
+      SHA_K.push(Math.floor((Math.cbrt(n) % 1) * 4294967296) | 0);
+    }
+    n++;
+  }
+})();
+function sha256(msg){
+  const s = unescape(encodeURIComponent(msg)), b = [];
+  for (let i = 0; i < s.length; i++) b.push(s.charCodeAt(i));
+  const bits = b.length * 8;
+  b.push(0x80);
+  while (b.length % 64 !== 56) b.push(0);
+  const hi = Math.floor(bits / 4294967296), lo = bits >>> 0;
+  for (let i = 3; i >= 0; i--) b.push((hi >>> (i * 8)) & 255);
+  for (let i = 3; i >= 0; i--) b.push((lo >>> (i * 8)) & 255);
+  let H = SHA_H.slice(); const w = new Array(64);
+  for (let o = 0; o < b.length; o += 64) {
+    for (let i = 0; i < 16; i++) w[i] = (b[o+4*i] << 24) | (b[o+4*i+1] << 16) | (b[o+4*i+2] << 8) | b[o+4*i+3];
+    for (let i = 16; i < 64; i++) {
+      const a = w[i-15], c = w[i-2];
+      const s0 = ((a >>> 7) | (a << 25)) ^ ((a >>> 18) | (a << 14)) ^ (a >>> 3);
+      const s1 = ((c >>> 17) | (c << 15)) ^ ((c >>> 19) | (c << 13)) ^ (c >>> 10);
+      w[i] = (w[i-16] + s0 + w[i-7] + s1) | 0;
+    }
+    let [a, bb, c, d, e, f, g, h] = H;
+    for (let i = 0; i < 64; i++) {
+      const S1 = ((e >>> 6) | (e << 26)) ^ ((e >>> 11) | (e << 21)) ^ ((e >>> 25) | (e << 7));
+      const ch = (e & f) ^ (~e & g);
+      const t1 = (h + S1 + ch + SHA_K[i] + w[i]) | 0;
+      const S0 = ((a >>> 2) | (a << 30)) ^ ((a >>> 13) | (a << 19)) ^ ((a >>> 22) | (a << 10));
+      const mj = (a & bb) ^ (a & c) ^ (bb & c);
+      const t2 = (S0 + mj) | 0;
+      h = g; g = f; f = e; e = (d + t1) | 0; d = c; c = bb; bb = a; a = (t1 + t2) | 0;
+    }
+    H = [(H[0]+a)|0, (H[1]+bb)|0, (H[2]+c)|0, (H[3]+d)|0, (H[4]+e)|0, (H[5]+f)|0, (H[6]+g)|0, (H[7]+h)|0];
+  }
+  return H.map(x => (x >>> 0).toString(16).padStart(8, '0')).join('');
+}
+
+/* ---------- small helpers ---------- */
+const $ = (s, r = document) => r.querySelector(s);
+const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
+const pl = (n, w) => n + ' ' + w + (n === 1 ? '' : 's');
+const pad = n => String(n).padStart(2, '0');
+const toISO = d => d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate());
+const parseISO = s => { const p = s.split('-').map(Number); return new Date(p[0], p[1] - 1, p[2]); };
+const addDays = (d, n) => { const x = new Date(d); x.setDate(x.getDate() + n); return x; };
+const today = () => toISO(new Date());
+const fmtDate = s => parseISO(s).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+const fmtRange = (a, b) => a === b ? fmtDate(a) : fmtDate(a) + ' \u2013 ' + fmtDate(b);
+const isWk = d => d.getDay() !== 0 && d.getDay() !== 6;
+function workingDays(a, b){ let n = 0, d = parseISO(a); const e = parseISO(b); while (d <= e) { if (isWk(d)) n++; d = addDays(d, 1); } return n; }
+function wd(off){ let d = addDays(new Date(), off); while (!isWk(d)) d = addDays(d, 1); return d; }
+function endAfter(s, n){ let d = new Date(s), c = 1; while (c < n) { d = addDays(d, 1); if (isWk(d)) c++; } return d; }
+function relDate(s){ const t = today(); if (s === t) return 'Today'; if (s === toISO(addDays(new Date(), -1))) return 'Yesterday'; return fmtDate(s); }
+const initials = n => n.split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase();
+const cap = s => s.charAt(0).toUpperCase() + s.slice(1);
+
+const store = {
+  get(k, a){ try { const v = (a === 's' ? sessionStorage : localStorage).getItem(k); return v ? JSON.parse(v) : null; } catch (e) { return null; } },
+  set(k, v, a){ try { (a === 's' ? sessionStorage : localStorage).setItem(k, JSON.stringify(v)); } catch (e) {} },
+  del(k){ try { localStorage.removeItem(k); sessionStorage.removeItem(k); } catch (e) {} },
+};
+
+/* ---------- icons ---------- */
+const ICONS = {
+  arrow: '<path d="M5 12h14M13 6l6 6-6 6"/>',
+  grid: '<rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/>',
+  'cal-plus': '<rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18M12 14v4M10 16h4"/>',
+  file: '<path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M9 13h6M9 17h6"/>',
+  inbox: '<path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/>',
+  users: '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/>',
+  layers: '<path d="m12 2 10 5-10 5L2 7z"/><path d="m2 17 10 5 10-5M2 12l10 5 10-5"/>',
+  activity: '<path d="M22 12h-4l-3 9L9 3l-3 9H2"/>',
+  out: '<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/>',
+  chev: '<path d="m6 9 6 6 6-6"/>',
+  check: '<path d="M20 6 9 17l-5-5"/>',
+  x: '<path d="M18 6 6 18M6 6l12 12"/>',
+  eye: '<path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/>',
+  'eye-off': '<path d="M9.9 4.24A9.1 9.1 0 0 1 12 4c6.5 0 10 8 10 8a13.2 13.2 0 0 1-1.67 2.68M6.61 6.61A13.5 13.5 0 0 0 2 12s3.5 8 10 8a9.7 9.7 0 0 0 5.39-1.61M2 2l20 20"/><path d="M14.12 14.12a3 3 0 1 1-4.24-4.24"/>',
+  menu: '<path d="M4 6h16M4 12h16M4 18h16"/>',
+  search: '<circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/>',
+  lock: '<rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/>',
+  mail: '<rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/>',
+  alert: '<circle cx="12" cy="12" r="9"/><path d="M12 8v5M12 16h.01"/>',
+  reset: '<path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/>',
+  user: '<path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>',
+};
+const ic = (n, c = '') => '<svg class="ic ' + c + '" viewBox="0 0 24 24" aria-hidden="true">' + ICONS[n] + '</svg>';
+const logoMark = () => '<svg class="logo" viewBox="0 0 40 40" aria-hidden="true"><use href="#logo-mark"/></svg>';
+const wordmark = () => '<div class="wordmark">' + logoMark() + '<b>Leave system</b></div>';
+
+/* ---------- data ---------- */
+let db;
+function seed(){
+  const iso = n => toISO(addDays(new Date(), n));
+  const mk = (id, name, role, manager, title, dept, c) => {
+    const salt = 'ls-' + id;
+    return { id, name, role, manager, title, dept, c, email: name.toLowerCase().replace(' ', '.') + '@company.demo', salt, hash: sha256(salt + DEMO_PASSWORD) };
+  };
+  const req = (id, emp, type, off, n, reason, status, x) => {
+    const s = wd(off), e = endAfter(s, n), a = toISO(s), b = toISO(e);
+    return Object.assign({ id, emp, type, start: a, end: b, days: workingDays(a, b), reason, status }, x);
+  };
+  const d = {
+    v: 2, seq: 6,
+    users: [
+      mk('maria', 'Maria Santos', 'employee', 'david', 'Customer Success Associate', 'Customer Success', '#0F8B8D'),
+      mk('ana', 'Ana Lim', 'employee', 'david', 'Product Designer', 'Customer Success', '#3F7D3A'),
+      mk('david', 'David Reyes', 'employee', 'linda', 'Head of Operations', 'Operations', '#2F6FDE'),
+      mk('linda', 'Linda Cruz', 'admin', null, 'People and Culture Lead', 'Human Resources', '#C9602D'),
+    ],
+    leaveTypes: [
+      { id: 'vacation', name: 'Vacation leave', entitled: 15, requiresDoc: false, active: true },
+      { id: 'sick', name: 'Sick leave', entitled: 6, requiresDoc: true, active: true },
+      { id: 'emergency', name: 'Emergency leave', entitled: 3, requiresDoc: true, active: false },
+    ],
+    balances: {},
+    requests: [
+      req(1, 'maria', 'vacation', -40, 2, 'Family event out of town.', 'approved', { submitted: iso(-43), decidedBy: 'linda', decidedAt: iso(-38), note: 'Approved. Enjoy the time off.' }),
+      req(2, 'maria', 'sick', -7, 1, 'Fever and colds.', 'approved', { submitted: iso(-7), decidedBy: 'linda', decidedAt: iso(-6), note: '' }),
+      req(3, 'ana', 'vacation', -21, 3, 'Trip with friends.', 'rejected', { submitted: iso(-24), decidedBy: 'linda', decidedAt: iso(-20), note: 'Peak season. The team needs coverage that week.' }),
+      req(4, 'maria', 'vacation', 10, 3, 'Family trip out of town.', 'pending', { submitted: iso(0) }),
+      req(5, 'ana', 'sick', 11, 1, "Doctor's appointment.", 'pending', { submitted: iso(0) }),
+    ],
+    activity: [
+      { date: iso(0), text: 'Ana Lim submitted a sick leave request.' },
+      { date: iso(0), text: 'Maria Santos submitted a vacation leave request.' },
+      { date: iso(-6), text: 'Linda Cruz approved Maria Santos\u2019s sick leave request.' },
+      { date: iso(-20), text: 'Linda Cruz rejected Ana Lim\u2019s vacation leave request.' },
+      { date: iso(-30), text: 'Linda Cruz deactivated emergency leave.' },
+    ],
+  };
+  const ent = { vacation: 15, sick: 6, emergency: 3 };
+  d.users.forEach(u => { d.balances[u.id] = { vacation: { entitled: 15, used: 0, pending: 0 }, sick: { entitled: 6, used: 0, pending: 0 } }; });
+  d.requests.forEach(r => {
+    const B = d.balances[r.emp];
+    const b = B[r.type] || (B[r.type] = { entitled: ent[r.type], used: 0, pending: 0 });
+    if (r.status === 'pending') b.pending += r.days;
+    if (r.status === 'approved') b.used += r.days;
+  });
+  return d;
+}
+function saveDB(){ store.set(KEY_DB, db); }
+function loadDB(){ const d = store.get(KEY_DB); if (d && d.v === 2) return d; const s = seed(); store.set(KEY_DB, s); return s; }
+
+const usr = id => db.users.find(u => u.id === id);
+const lt = id => db.leaveTypes.find(t => t.id === id);
+const rq = id => db.requests.find(r => r.id === id);
+const first = u => u.name.split(' ')[0];
+function bal(emp, t){ const B = db.balances[emp] || (db.balances[emp] = {}); return B[t] || (B[t] = { entitled: lt(t).entitled, used: 0, pending: 0 }); }
+const avail = (emp, t) => { const b = bal(emp, t); return b.entitled - b.used - b.pending; };
+const byNewest = (a, b) => b.submitted.localeCompare(a.submitted) || b.id - a.id;
+function logAct(text){ db.activity.unshift({ date: today(), text }); db.activity = db.activity.slice(0, 60); }
+
+/* ---------- UI components ---------- */
+const avatar = (u, big) => '<span class="av ' + (big ? 'lg' : '') + '" style="background:' + u.c + '" aria-hidden="true">' + initials(u.name) + '</span>';
+const pill = s => '<span class="pill ' + s + '"><i></i>' + cap(s) + '</span>';
+
+/* Scrollable dropdown: opts = [{v, label, sub?}] */
+const selHandlers = {};
+function selectHTML(id, opts, value, o = {}){
+  const cur = opts.find(x => x.v === value);
+  return '<div class="sel ' + (o.cls || '') + '" data-sel="' + id + '" data-value="' + esc(value) + '">'
+    + '<button type="button" class="sel-btn" id="' + id + '-btn" role="combobox" aria-haspopup="listbox" aria-expanded="false" aria-controls="' + id + '-list" aria-label="' + esc(o.label || 'Select') + '">'
+    + '<span class="sel-val ' + (cur ? '' : 'is-empty') + '">' + (cur ? esc(cur.label) : esc(o.placeholder || 'Select')) + '</span>' + ic('chev', 'sel-chev') + '</button>'
+    + '<ul class="sel-list" id="' + id + '-list" role="listbox" aria-labelledby="' + id + '-btn">'
+    + opts.map((x, i) => '<li role="option" id="' + id + '-o' + i + '" data-v="' + esc(x.v) + '" aria-selected="' + (x.v === value) + '"><span class="o-main">' + esc(x.label) + (x.sub ? '<span class="o-sub">' + esc(x.sub) + '</span>' : '') + '</span>' + ic('check') + '</li>').join('')
+    + '</ul></div>';
+}
+let suppressClickUntil = 0, typeBuf = '', typeTimer;
+function openSel(s){
+  closeSels(s);
+  s.classList.add('open');
+  const btn = $('.sel-btn', s), list = $('.sel-list', s);
+  btn.setAttribute('aria-expanded', 'true');
+  const r = s.getBoundingClientRect(), room = innerHeight - r.bottom - 12;
+  const need = Math.min(list.scrollHeight, 216) + 8;
+  s.classList.toggle('up', room < need && r.top > room);
+  setActive(s, $('[aria-selected="true"]', list) || list.firstElementChild);
+}
+function closeSels(except){
+  document.querySelectorAll('.sel.open').forEach(s => {
+    if (s === except) return;
+    s.classList.remove('open');
+    $('.sel-btn', s).setAttribute('aria-expanded', 'false');
+  });
+}
+function setActive(s, opt){
+  if (!opt) return;
+  const list = $('.sel-list', s);
+  list.querySelectorAll('.active').forEach(x => x.classList.remove('active'));
+  opt.classList.add('active');
+  $('.sel-btn', s).setAttribute('aria-activedescendant', opt.id);
+  opt.scrollIntoView({ block: 'nearest' });
+}
+function chooseSel(s, opt){
+  const v = opt.dataset.v;
+  s.dataset.value = v;
+  const val = $('.sel-val', s);
+  val.textContent = $('.o-main', opt).childNodes[0].textContent;
+  val.classList.remove('is-empty');
+  s.querySelectorAll('[role=option]').forEach(o => o.setAttribute('aria-selected', o === opt));
+  closeSels();
+  $('.sel-btn', s).focus();
+  const fn = selHandlers[s.dataset.sel];
+  if (fn) fn(v);
+}
+const selVal = id => { const s = $('[data-sel="' + id + '"]'); return s ? s.dataset.value : ''; };
+function selKey(e, s){
+  const open = s.classList.contains('open'), list = $('.sel-list', s), opts = [...list.children];
+  const cur = $('.active', list), i = opts.indexOf(cur);
+  switch (e.key) {
+    case 'ArrowDown': e.preventDefault(); if (!open) openSel(s); else setActive(s, opts[Math.min(i + 1, opts.length - 1)]); return true;
+    case 'ArrowUp': e.preventDefault(); if (!open) openSel(s); else setActive(s, opts[Math.max(i - 1, 0)]); return true;
+    case 'Home': if (open) { e.preventDefault(); setActive(s, opts[0]); return true; } return false;
+    case 'End': if (open) { e.preventDefault(); setActive(s, opts[opts.length - 1]); return true; } return false;
+    case 'Enter': case ' ':
+      if (open) { e.preventDefault(); suppressClickUntil = Date.now() + 400; if (cur) chooseSel(s, cur); return true; }
+      return false;
+    case 'Escape': if (open) { e.preventDefault(); closeSels(); return true; } return false;
+    case 'Tab': closeSels(); return false;
+    default:
+      if (e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey) {
+        typeBuf += e.key.toLowerCase(); clearTimeout(typeTimer); typeTimer = setTimeout(() => typeBuf = '', 600);
+        const m = opts.find(o => $('.o-main', o).textContent.toLowerCase().startsWith(typeBuf));
+        if (m) { if (!open) openSel(s); setActive(s, m); }
+        return true;
+      }
+      return false;
+  }
+}
+
+function ring(b){
+  const total = b.entitled || 1, a = Math.max(b.entitled - b.used - b.pending, 0);
+  let start = 0, out = '';
+  [[a, 'var(--lagoon)'], [b.pending, 'var(--sun)'], [b.used, '#B9C6CE']].forEach(([v, col]) => {
+    const len = RING_C * v / total;
+    if (v > 0) out += '<circle class="arc" cx="50" cy="50" r="' + RING_R + '" stroke="' + col + '" data-len="' + len.toFixed(2) + '" stroke-dasharray="0 ' + RING_C.toFixed(2) + '" stroke-dashoffset="' + (-start).toFixed(2) + '"/>';
+    start += len;
+  });
+  return '<svg class="ring" viewBox="0 0 100 100" aria-hidden="true"><circle class="track" cx="50" cy="50" r="' + RING_R + '"/>' + out + '</svg>';
+}
+function balCard(u, t){
+  const b = bal(u.id, t.id), a = b.entitled - b.used - b.pending;
+  return '<article class="card bal"><div class="ring-wrap">' + ring(b) + '<div class="ring-c"><strong data-count="' + a + '">' + a + '</strong><span>days left</span></div></div>'
+    + '<div class="bal-body"><h3>' + esc(t.name) + '</h3><div class="of">' + pl(b.entitled, 'day') + ' this year</div>'
+    + '<div class="legend"><div><i style="background:var(--lagoon)"></i>Available<b>' + a + '</b></div><div><i style="background:var(--sun)"></i>Pending<b>' + b.pending + '</b></div><div><i style="background:#B9C6CE"></i>Used<b>' + b.used + '</b></div></div></div></article>';
+}
+function countUp(el){
+  const to = +el.dataset.count;
+  if (REDUCE || !to) return;
+  const t0 = performance.now(), D = 800;
+  el.textContent = 0;
+  (function step(t){ const p = Math.min((t - t0) / D, 1); el.textContent = Math.round(to * (1 - Math.pow(1 - p, 3))); if (p < 1) requestAnimationFrame(step); })(t0);
+}
+function afterPaint(root){
+  const arcs = root.querySelectorAll('.arc');
+  const set = () => arcs.forEach(a => { const l = +a.dataset.len; a.style.strokeDasharray = l + ' ' + (RING_C - l + .5); });
+  if (REDUCE) set(); else requestAnimationFrame(() => requestAnimationFrame(set));
+  root.querySelectorAll('[data-count]').forEach(countUp);
+}
+
+function toast(msg, kind){
+  const el = document.createElement('div');
+  el.className = 'toast ' + (kind || '');
+  el.innerHTML = ic(kind === 'err' ? 'alert' : 'check') + '<span>' + esc(msg) + '</span><i class="toast-bar"></i>';
+  $('#toasts').appendChild(el);
+  requestAnimationFrame(() => requestAnimationFrame(() => el.classList.add('in')));
+  setTimeout(() => { el.classList.remove('in'); setTimeout(() => el.remove(), 300); }, 4200);
+}
+
+/* ---------- session / auth ---------- */
+const ui = { view: null, filters: { status: 'all', emp: 'all', role: 'all', q: '', type: 'all', from: '', to: '' }, drawer: null, notice: null, highlight: null, tried: false };
+let session = null, mounted = null, lastActive = Date.now(), lockTimer = null;
+const fails = {};
+const sUser = () => session ? usr(session.uid) : null;
+
+function loadSession(){
+  for (const a of ['l', 's']) {
+    const s = store.get(KEY_S, a);
+    if (!s) continue;
+    if (s.exp > Date.now() && usr(s.uid) && usr(s.uid).active !== false) return s;
+    store.del(KEY_S);
+    ui.notice = 'Your session expired. Sign in again to continue.';
+  }
+  return null;
+}
+function startSession(u, remember){
+  session = { uid: u.id, remember, exp: Date.now() + (remember ? 7 * 864e5 : 8 * 36e5) };
+  store.del(KEY_S);
+  store.set(KEY_S, session, remember ? 'l' : 's');
+  lastActive = Date.now();
+  mounted = null; ui.view = null; ui.notice = null;
+  setHash(ROUTES[u.role][0], true);
+  render();
+  toast('Welcome back, ' + first(u) + '.');
+}
+function logout(reason){
+  store.del(KEY_S);
+  session = null; mounted = null;
+  ui.notice = reason === 'idle' ? 'You were signed out after 30 minutes of inactivity.' : reason === 'expired' ? 'Your session expired. Sign in again to continue.' : null;
+  render();
+  if (!reason) toast('You are signed out.');
+}
+function showAlert(msg, type, quiet){
+  const a = $('#loginAlert'); if (!a) return;
+  a.className = 'alert ' + (type || 'err');
+  a.innerHTML = ic('alert') + '<span>' + esc(msg) + '</span>';
+  a.hidden = false;
+  if (!quiet && type !== 'info') { const c = $('.auth-card'); c.classList.remove('shake'); void c.offsetWidth; c.classList.add('shake'); }
+}
+function fieldErr(id, msg){
+  const f = $('#' + id).closest('.field'); f.classList.add('err');
+  $('#' + id + 'Err').textContent = msg;
+}
+function clearLoginErrors(){
+  document.querySelectorAll('.auth .field').forEach(f => f.classList.remove('err'));
+  document.querySelectorAll('.auth .ferr').forEach(f => f.textContent = '');
+  const a = $('#loginAlert'); if (a) a.hidden = true;
+}
+function startLock(email){
+  const f = fails[email];
+  clearInterval(lockTimer);
+  const tick = () => {
+    const s = Math.ceil((f.until - Date.now()) / 1000);
+    if (s <= 0) { clearInterval(lockTimer); f.n = 0; const a = $('#loginAlert'); if (a) a.hidden = true; return; }
+    showAlert('Too many failed attempts. Try again in ' + s + ' seconds.', 'err', true);
+  };
+  tick(); lockTimer = setInterval(tick, 1000);
+}
+function doLogin(){
+  clearLoginErrors();
+  const email = $('#email').value.trim().toLowerCase(), pw = $('#password').value;
+  let bad = false;
+  if (!email) { fieldErr('email', 'Enter your work email.'); bad = true; }
+  else if (!/^\S+@\S+\.\S+$/.test(email)) { fieldErr('email', 'Enter a valid email, like name@company.com.'); bad = true; }
+  if (!pw) { fieldErr('password', 'Enter your password.'); bad = true; }
+  if (bad) { const c = $('.auth-card'); c.classList.remove('shake'); void c.offsetWidth; c.classList.add('shake'); return; }
+  const f = fails[email] || (fails[email] = { n: 0, until: 0 });
+  if (f.until > Date.now()) { startLock(email); return; }
+  const btn = $('#loginBtn'); btn.classList.add('loading'); btn.disabled = true;
+  setTimeout(() => {
+    if (mounted !== 'login') return;
+    const u = db.users.find(x => x.email === email);
+    if (u && u.active !== false && sha256(u.salt + pw) === u.hash) {
+      f.n = 0; startSession(u, $('#remember').checked); return;
+    }
+    btn.classList.remove('loading'); btn.disabled = false;
+    f.n++;
+    if (f.n >= MAX_ATTEMPTS) { f.until = Date.now() + LOCK_SECONDS * 1000; startLock(email); return; }
+    const left = MAX_ATTEMPTS - f.n;
+    showAlert('Email or password is incorrect.' + (left <= 2 ? ' ' + pl(left, 'attempt') + ' left.' : ''));
+    $('#password').select();
+  }, 650);
+}
+selHandlers.demo = id => {
+  const u = usr(id);
+  document.querySelectorAll('.acct').forEach(b => { const on = b.dataset.id === id; b.classList.toggle('on', on); b.setAttribute('aria-pressed', on); });
+  clearLoginErrors();
+  $('#email').value = u.email; $('#password').value = DEMO_PASSWORD;
+  $('#loginBtn').focus();
+};
+
+/* ---------- routing ---------- */
+const ROUTES = { employee: ['dashboard', 'apply', 'requests', 'profile'], admin: ['overview', 'requests', 'users', 'types', 'reports', 'activity'] };
+const NAV = {
+  employee: [['dashboard', 'My leave', 'grid'], ['apply', 'Apply for leave', 'cal-plus'], ['requests', 'My requests', 'file'], ['profile', 'My profile', 'user']],
+  admin: [['overview', 'Dashboard', 'grid'], ['requests', 'Applications', 'inbox'], ['users', 'Employees', 'users'], ['types', 'Leave types', 'layers'], ['reports', 'Reports', 'file'], ['activity', 'Activity', 'activity']],
+};
+const TITLES = { dashboard: 'My leave', apply: 'Apply for leave', requests: 'My requests', profile: 'My profile', overview: 'Dashboard', users: 'Employees', types: 'Leave types', reports: 'Reports', activity: 'Activity' };
+function setHash(v, replace){
+  const h = '#/' + v;
+  if (location.hash === h) return false;
+  if (replace) { try { history.replaceState(null, '', h); return false; } catch (e) {} }
+  location.hash = h; return true;
+}
+function go(v){ closeDrawer(); if (!setHash(v)) render(); }
+
+/* ---------- views ---------- */
+function loginHTML(){
+  const demo = !DEMO_MODE ? '' :
+    '<div class="demo"><div class="demo-l" id="demo-l">Try a sample account</div><div class="accts" role="group" aria-labelledby="demo-l">'
+    + db.users.map(u => '<button type="button" class="acct" data-act="demo" data-id="' + u.id + '" aria-label="' + esc(u.name) + ', ' + ROLE[u.role] + '" aria-pressed="false">' + avatar(u) + '<span><b>' + esc(u.name) + '</b><small>' + ROLE[u.role] + '</small></span></button>').join('')
+    + '</div><p class="hint">Prototype with sample data. Every sample account uses the password <b>' + DEMO_PASSWORD + '</b>.</p></div>';
+  return '<div class="auth"><div class="auth-card">'
+    + '<div class="auth-brand">' + wordmark() + '</div>'
+    + '<h1>Sign in</h1><p class="sub">Use your work email to continue.</p>'
+    + '<div class="alert info" id="loginAlert" role="alert"' + (ui.notice ? '' : ' hidden') + '>' + (ui.notice ? ic('alert') + '<span>' + esc(ui.notice) + '</span>' : '') + '</div>'
+    + '<form id="loginForm" novalidate>'
+    + '<div class="field"><label for="email">Work email</label><div class="inp">' + ic('mail') + '<input class="input" id="email" type="email" autocomplete="username" placeholder="name@company.com" spellcheck="false"></div><div class="ferr" id="emailErr"></div></div>'
+    + '<div class="field"><div class="lbl-row"><label for="password">Password</label><button type="button" class="link" data-act="forgot">Forgot password?</button></div><div class="inp">' + ic('lock') + '<input class="input has-eye" id="password" type="password" autocomplete="current-password" placeholder="Enter your password"><button type="button" class="eye" data-act="togglePw" aria-label="Show password">' + ic('eye') + '</button></div><div class="ferr" id="passwordErr"></div></div>'
+    + '<label class="check"><input type="checkbox" id="remember" checked><span>Keep me signed in on this device</span></label>'
+    + '<button class="btn primary lg block" id="loginBtn" type="submit"><span class="btn-t">Sign in' + ic('arrow') + '</span><span class="spin"></span></button>'
+    + '</form>'
+    + demo
+    + '</div></div>';
+}
+
+function shellHTML(u){
+  const items = NAV[u.role].map(([v, l, i]) => '<a class="nav-item" href="#/' + v + '" data-view="' + v + '">' + ic(i) + '<span>' + l + '</span>' + (v === 'requests' && u.role === 'admin' ? '<span class="badge" id="qBadge" hidden></span>' : '') + '</a>').join('');
+  return '<div class="shell" id="shell">'
+    + '<aside class="side" id="side">' + wordmark()
+    + '<nav class="nav" id="nav" aria-label="Main"><span class="nav-ind" id="navInd"></span>' + items + '</nav>'
+    + '<div class="side-note">Prototype build. Sample data is stored in this browser only.</div>'
+    + '<div class="side-foot"><div class="umenu" id="umenu"><button type="button" data-act="reset">' + ic('reset') + 'Reset sample data</button><button type="button" class="out" data-act="logout">' + ic('out') + 'Sign out</button></div>'
+    + '<button type="button" class="ubtn" data-act="umenu" aria-haspopup="menu" aria-expanded="false">' + avatar(u) + '<span class="meta"><b>' + esc(u.name) + '</b><small>' + ROLE[u.role] + '</small></span>' + ic('chev') + '</button></div>'
+    + '</aside><div class="nav-scrim" data-act="navClose"></div>'
+    + '<div class="main-wrap"><header class="mbar"><button type="button" class="x" data-act="navOpen" aria-label="Open menu">' + ic('menu') + '</button>' + wordmark() + '</header>'
+    + '<main class="page" id="page" tabindex="-1"></main></div></div>';
+}
+
+function viewDashboard(u){
+  const mine = db.requests.filter(r => r.emp === u.id).sort(byNewest);
+  const cards = db.leaveTypes.filter(t => t.active).map(t => balCard(u, t)).join('');
+  const nxt = mine.filter(r => (r.status === 'approved' || r.status === 'pending') && r.end >= today()).sort((a, b) => a.start.localeCompare(b.start))[0];
+  let next;
+  if (nxt) {
+    const d = parseISO(nxt.start);
+    next = '<article class="card next" data-act="openReq" data-id="' + nxt.id + '" tabindex="0"><h3>Next time off</h3><div class="next-row"><div class="datebox"><b>' + d.getDate() + '</b><span>' + d.toLocaleDateString('en-US', { month: 'short' }) + '</span></div><div><div class="next-t">' + esc(lt(nxt.type).name) + '</div><div class="muted">' + fmtRange(nxt.start, nxt.end) + '</div></div></div><div class="next-foot">' + pill(nxt.status) + '<span class="muted">' + pl(nxt.days, 'working day') + '</span></div></article>';
+  } else {
+    next = '<article class="card next empty-next"><h3>Next time off</h3><p class="muted">Nothing planned yet. Book your next break while your balance is healthy.</p><div class="next-foot"><button class="btn primary sm" data-act="go" data-view="apply">Apply for leave</button></div></article>';
+  }
+  const rows = mine.slice(0, 4).map(r => '<tr class="click" tabindex="0" data-act="openReq" data-id="' + r.id + '"><td><b>' + esc(lt(r.type).name) + '</b></td><td>' + fmtRange(r.start, r.end) + '</td><td class="num">' + r.days + '</td><td>' + pill(r.status) + '</td></tr>').join('');
+  return '<div class="ph"><div><h1>' + greet() + ', ' + esc(first(u)) + '</h1><p>Here is where your leave stands today.</p></div><button class="btn primary" data-act="go" data-view="apply">' + ic('cal-plus') + 'Apply for leave</button></div>'
+    + '<div class="bal-grid">' + cards + next + '</div>'
+    + '<div class="sh"><h2>Recent requests</h2><button class="link" data-act="go" data-view="requests">View all</button></div>'
+    + '<div class="tbl-wrap"><table class="tbl"><thead><tr><th>Type</th><th>Dates</th><th class="num">Days</th><th>Status</th></tr></thead><tbody>'
+    + (rows || '<tr><td colspan="4"><div class="empty"><h3>No requests yet</h3>Your submitted leave will show up here.</div></td></tr>') + '</tbody></table></div>';
+}
+function greet(){ const h = new Date().getHours(); return h < 12 ? 'Good morning' : h < 18 ? 'Good afternoon' : 'Good evening'; }
+
+function viewApply(u){
+  const types = db.leaveTypes.filter(t => t.active).map(t => ({ v: t.id, label: t.name, sub: pl(avail(u.id, t.id), 'day') + ' available' }));
+  const start = toISO(wd(7));
+  return '<div class="ph"><div><h1>Apply for leave</h1><p>Your request goes to the administrator for review.</p></div></div>'
+    + '<div class="apply-grid"><form class="card" id="applyForm" novalidate>'
+    + '<div class="field"><label>Leave type</label>' + selectHTML('f-type', types, '', { placeholder: 'Select a leave type', label: 'Leave type' }) + '</div>'
+    + '<div class="row2"><div class="field"><label for="f-start">Start date</label><input class="input" type="date" id="f-start" value="' + start + '" min="' + today() + '"></div>'
+    + '<div class="field"><label for="f-end">End date</label><input class="input" type="date" id="f-end" value="' + start + '" min="' + today() + '"></div></div>'
+    + '<div class="chips"><span>Quick pick</span><button type="button" class="chip" data-act="chip" data-n="1">1 day</button><button type="button" class="chip" data-act="chip" data-n="2">2 days</button><button type="button" class="chip" data-act="chip" data-n="3">3 days</button><button type="button" class="chip" data-act="chip" data-n="5">1 work week</button></div>'
+    + '<div class="field"><label for="f-reason">Reason</label><div class="reason-pick">' + selectHTML('f-reasonpick', REASONS.map(r => ({ v: r, label: r })), '', { placeholder: 'Start from a common reason (optional)', label: 'Common reasons' }) + '</div>'
+    + '<textarea class="input area" id="f-reason" placeholder="Add a short reason for the administrator"></textarea></div>'
+    + '<div class="field" id="docField" hidden><label for="f-doc">Supporting document <span class="muted">(PDF, JPG or PNG, up to 1 MB)</span></label><input class="input file" type="file" id="f-doc" accept=".pdf,.jpg,.jpeg,.png"><div class="ferr" id="f-docErr"></div></div>'
+    + '<div class="form-foot"><button type="button" class="btn primary" data-act="submitReq">Submit request</button><button type="button" class="btn" data-act="go" data-view="dashboard">Cancel</button></div>'
+    + '</form><aside class="card sum" id="applySummary" aria-live="polite"></aside></div>';
+}
+function validateRequest(){
+  const typeId = selVal('f-type'), start = $('#f-start').value, end = $('#f-end').value, reason = $('#f-reason').value.trim();
+  const u = sUser(), errs = [];
+  let days = 0;
+  if (!typeId) errs.push('Select a leave type.');
+  if (!start || !end) errs.push('Enter a start and end date.');
+  else if (end < start) errs.push('The end date must be on or after the start date.');
+  else {
+    days = workingDays(start, end);
+    if (days < 1) errs.push('The selected dates have no working days.');
+    if (start < today()) errs.push('The start date is in the past.');
+    if (start.slice(0, 4) !== end.slice(0, 4)) errs.push('A request cannot span two years. Submit one request per year.');
+    if (typeId && days > 0) {
+      const a = avail(u.id, typeId);
+      if (days > a) errs.push('This needs ' + pl(days, 'day') + ' but only ' + a + ' ' + (a === 1 ? 'is' : 'are') + ' available.');
+      const clash = db.requests.find(r => r.emp === u.id && (r.status === 'pending' || r.status === 'approved') && r.start <= end && start <= r.end);
+      if (clash) errs.push('These dates overlap your ' + lt(clash.type).name.toLowerCase() + ' request for ' + fmtRange(clash.start, clash.end) + '.');
+    }
+  }
+  if (typeId && lt(typeId).requiresDoc && !ui.upload) errs.push('Attach a supporting document for ' + lt(typeId).name.toLowerCase() + '.');
+  return { errs, days, typeId, start, end, reason };
+}
+function updateApplySummary(){
+  const box = $('#applySummary'); if (!box) return;
+  const u = sUser(), v = validateRequest(), t = v.typeId ? lt(v.typeId) : null;
+  if (ui.tried && !v.reason) v.errs.push('Add a short reason for the administrator.');
+  const b = t ? bal(u.id, t.id) : null, a = t ? avail(u.id, t.id) : 0;
+  const df = $('#docField'); if (df) df.hidden = !(t && t.requiresDoc);
+  const after = t && v.days > 0 ? Math.max(a - v.days, 0) : null;
+  let bar = '';
+  if (b && after !== null) {
+    const ent = b.entitled || 1;
+    bar = '<div class="bar"><i class="after" style="width:' + (after / ent * 100) + '%"></i><i class="this" style="width:' + (Math.min(v.days, a) / ent * 100) + '%"></i></div><div class="bar-l"><span>Left after this</span><span>This request</span></div>';
+  }
+  let status = '';
+  if (v.errs.length) status = '<ul class="issues">' + v.errs.map(e => '<li>' + ic('alert') + '<span>' + esc(e) + '</span></li>').join('') + '</ul>';
+  else if (v.days > 0 && t) status = !v.reason ? '<p class="hint-line"' + (ui.tried ? ' style="color:var(--bad)"' : '') + '>Add a short reason to submit.</p>' : '<div class="ok-line">' + ic('check') + 'Ready to submit</div>';
+  const doc = t && t.requiresDoc ? '<div class="callout info">' + ic('alert') + '<span>This leave type needs a supporting document. Attach it below before you submit.</span></div>' : '';
+  box.innerHTML = '<h3>Request summary</h3>'
+    + '<div class="row"><span>Reviewed by</span><strong>Administrator</strong></div>'
+    + '<div class="row"><span>Working days</span><strong>' + (v.days > 0 ? v.days : '\u2013') + '</strong></div>'
+    + '<div class="row"><span>Balance after</span><strong>' + (after !== null ? after + ' of ' + b.entitled + ' days' : '\u2013') + '</strong></div>'
+    + bar + status + doc;
+}
+selHandlers['f-type'] = () => updateApplySummary();
+selHandlers['f-reasonpick'] = v => { const t = $('#f-reason'); t.value = v + '.'; t.focus(); updateApplySummary(); };
+function submitRequest(){
+  ui.tried = true;
+  const v = validateRequest(), u = sUser();
+  if (!v.reason) v.errs.push('Add a short reason for the administrator.');
+  if (v.errs.length) {
+    updateApplySummary();
+    const c = $('#applySummary'); c.classList.remove('shake'); void c.offsetWidth; c.classList.add('shake');
+    toast('Fix the items in the summary to submit.', 'err');
+    return;
+  }
+  const r = { id: db.seq++, emp: u.id, type: v.typeId, start: v.start, end: v.end, days: v.days, reason: v.reason, status: 'pending', submitted: today(), doc: lt(v.typeId).requiresDoc ? ui.upload : null };
+  db.requests.push(r);
+  bal(u.id, v.typeId).pending += v.days;
+  logAct(u.name + ' submitted a ' + lt(v.typeId).name.toLowerCase() + ' request.');
+  saveDB();
+  ui.highlight = r.id;
+  toast('Request submitted for review.');
+  go('requests');
+}
+
+const STATUS_OPTS = [{ v: 'all', label: 'All statuses' }, { v: 'pending', label: 'Pending' }, { v: 'approved', label: 'Approved' }, { v: 'rejected', label: 'Rejected' }];
+selHandlers['flt-status'] = v => { ui.filters.status = v; paintMain(false); };
+selHandlers['flt-emp'] = v => { ui.filters.emp = v; paintMain(false); };
+selHandlers['flt-role'] = v => { ui.filters.role = v; paintMain(false); };
+selHandlers['flt-type'] = v => { ui.filters.type = v; paintMain(false); };
+
+function viewRequests(u){
+  const f = ui.filters.status;
+  const all = db.requests.filter(r => r.emp === u.id).sort(byNewest);
+  const list = f === 'all' ? all : all.filter(r => r.status === f);
+  const rows = list.map(r => '<tr class="click" tabindex="0" data-act="openReq" data-id="' + r.id + '" data-rid="' + r.id + '"><td><b>' + esc(lt(r.type).name) + '</b></td><td>' + fmtRange(r.start, r.end) + '</td><td class="num">' + r.days + '</td><td>' + pill(r.status) + '</td><td class="muted">' + fmtDate(r.submitted) + '</td></tr>').join('');
+  const empty = all.length ? '<div class="empty"><h3>Nothing matches this filter</h3>Try another status.</div>' : '<div class="empty"><h3>No requests yet</h3>Apply for leave and it will appear here.<br><button class="btn primary" data-act="go" data-view="apply">Apply for leave</button></div>';
+  return '<div class="ph"><div><h1>My requests</h1><p>Every leave request you have submitted.</p></div><button class="btn primary" data-act="go" data-view="apply">' + ic('cal-plus') + 'Apply for leave</button></div>'
+    + '<div class="toolbar">' + selectHTML('flt-status', STATUS_OPTS, f, { label: 'Filter by status' }) + '<span class="count">' + pl(list.length, 'request') + '</span></div>'
+    + '<div class="tbl-wrap"><table class="tbl"><thead><tr><th>Type</th><th>Dates</th><th class="num">Days</th><th>Status</th><th>Submitted</th></tr></thead><tbody>'
+    + (rows || '<tr><td colspan="5">' + empty + '</td></tr>') + '</tbody></table></div>';
+}
+
+const emps = () => db.users.filter(u => u.role === 'employee');
+const pendingAll = () => db.requests.filter(r => r.status === 'pending');
+const statCard = (n, l, hl) => '<div class="card stat' + (hl ? ' hl' : '') + '"><div class="n" data-count="' + n + '">' + n + '</div><div class="l">' + l + '</div></div>';
+const reqRow = r => { const e = usr(r.emp); return '<tr class="click" tabindex="0" data-act="openReq" data-id="' + r.id + '"><td><div class="cell-user">' + avatar(e) + '<div><b>' + esc(e.name) + '</b><small>' + esc(e.title) + '</small></div></div></td><td>' + esc(lt(r.type).name) + '</td><td>' + fmtRange(r.start, r.end) + '</td><td class="num">' + r.days + '</td><td>' + pill(r.status) + '</td><td class="muted">' + fmtDate(r.submitted) + '</td></tr>'; };
+const reqTable = (list, h, sub) => '<div class="tbl-wrap"><table class="tbl"><thead><tr><th>Employee</th><th>Leave type</th><th>Dates</th><th class="num">Days</th><th>Status</th><th>Submitted</th></tr></thead><tbody>' + (list.map(reqRow).join('') || '<tr><td colspan="6"><div class="empty"><h3>' + h + '</h3>' + sub + '</div></td></tr>') + '</tbody></table></div>';
+const filtered = f => db.requests.filter(r => (f.status === 'all' || r.status === f.status) && (f.emp === 'all' || r.emp === f.emp) && (f.type === 'all' || r.type === f.type) && (!f.from || r.end >= f.from) && (!f.to || r.start <= f.to)).sort(byNewest);
+const empOpts = () => [{ v: 'all', label: 'All employees' }].concat(emps().map(x => ({ v: x.id, label: x.name, sub: x.title })));
+
+function viewOverview(u){
+  const all = db.requests, c = s => all.filter(r => r.status === s).length, p = pendingAll().sort((a, b) => a.submitted.localeCompare(b.submitted));
+  return '<div class="ph"><div><h1>' + greet() + ', ' + esc(first(u)) + '</h1><p>Employees and leave applications at a glance.</p></div></div>'
+    + '<div class="stats">' + statCard(emps().length, 'Employees') + statCard(all.length, 'Leave applications') + statCard(p.length, 'Pending review', 1) + statCard(c('approved'), 'Approved') + statCard(c('rejected'), 'Rejected') + '</div>'
+    + '<div class="sh"><h2>Waiting for review</h2><button class="link" data-act="go" data-view="requests">View all applications</button></div>'
+    + reqTable(p, 'You are all caught up', 'New applications will show up here.');
+}
+function viewAll(){
+  const f = ui.filters, list = filtered(f);
+  return '<div class="ph"><div><h1>Leave applications</h1><p>Open an application to review it, then approve or reject.</p></div></div>'
+    + '<div class="toolbar">' + selectHTML('flt-emp', empOpts(), f.emp, { label: 'Filter by employee' }) + selectHTML('flt-status', STATUS_OPTS, f.status, { label: 'Filter by status' }) + '<span class="count">' + pl(list.length, 'application') + '</span></div>'
+    + reqTable(list, 'Nothing matches these filters', 'Try a different employee or status.');
+}
+function viewReports(){
+  const f = ui.filters, list = filtered(f), c = s => list.filter(r => r.status === s).length, days = list.filter(r => r.status === 'approved').reduce((a, r) => a + r.days, 0);
+  const typeOpts = [{ v: 'all', label: 'All leave types' }].concat(db.leaveTypes.map(t => ({ v: t.id, label: t.name })));
+  return '<div class="ph"><div><h1>Leave report</h1><p>Filter the records, then print the report.</p></div><button class="btn primary no-print" data-act="print">Print report</button></div>'
+    + '<div class="toolbar">' + selectHTML('flt-emp', empOpts(), f.emp, { label: 'Employee' }) + selectHTML('flt-type', typeOpts, f.type, { label: 'Leave type' }) + selectHTML('flt-status', STATUS_OPTS, f.status, { label: 'Status' })
+    + '<input class="input" type="date" id="rp-from" value="' + f.from + '" aria-label="From date" style="width:170px"><input class="input" type="date" id="rp-to" value="' + f.to + '" aria-label="To date" style="width:170px"></div>'
+    + '<p class="print-only">Generated on ' + fmtDate(today()) + ' by ' + esc(sUser().name) + '</p>'
+    + '<div class="stats">' + statCard(list.length, 'Applications') + statCard(c('approved'), 'Approved') + statCard(c('pending'), 'Pending') + statCard(c('rejected'), 'Rejected') + statCard(days, 'Approved leave days') + '</div>'
+    + '<div class="sh"><h2>Records</h2></div>' + reqTable(list, 'No records match', 'Widen the dates or pick another filter.');
+}
+
+function usersRows(){
+  const f = ui.filters, q = f.q.trim().toLowerCase();
+  const list = db.users.filter(u => (f.role === 'all' || u.role === f.role) && (!q || (u.name + ' ' + u.email + ' ' + u.title + ' ' + u.dept).toLowerCase().includes(q)));
+  return { list, html: list.map(u => '<tr class="click" tabindex="0" data-act="openUser" data-id="' + u.id + '"><td><div class="cell-user">' + avatar(u) + '<div><b>' + esc(u.name) + '</b><small>' + esc(u.email) + '</small></div></div></td><td>' + esc(u.title) + '<br><span class="muted">' + esc(u.dept) + '</span></td><td><span class="tag">' + ROLE[u.role] + '</span></td><td>' + (u.active === false ? '<span class="pill cancelled"><i></i>Inactive</span>' : '<span class="pill approved"><i></i>Active</span>') + '</td></tr>').join('') || '<tr><td colspan="4"><div class="empty"><h3>No one matches</h3>Try a different search or role.</div></td></tr>' };
+}
+function viewUsers(){
+  const f = ui.filters, r = usersRows();
+  const roleOpts = [{ v: 'all', label: 'All roles' }, { v: 'employee', label: 'Employee' }, { v: 'admin', label: 'Administrator' }];
+  return '<div class="ph"><div><h1>Employees</h1><p>Create and manage accounts. Open an account to edit it or see its leave history.</p></div><button class="btn primary" data-act="openUser" data-id="new">' + ic('users') + 'Add employee</button></div>'
+    + '<div class="toolbar"><div class="inp search">' + ic('search') + '<input class="input" id="userSearch" type="search" placeholder="Search people" value="' + esc(f.q) + '" aria-label="Search people"></div>' + selectHTML('flt-role', roleOpts, f.role, { label: 'Filter by role' }) + '<span class="count" id="usersCount">' + pl(r.list.length, 'person').replace('persons', 'people') + '</span></div>'
+    + '<div class="tbl-wrap"><table class="tbl"><thead><tr><th>Name</th><th>Position</th><th>Role</th><th>Status</th></tr></thead><tbody id="usersBody">' + r.html + '</tbody></table></div>';
+}
+function userDrawerHTML(id){
+  const u = id === 'new' ? null : usr(id), v = u || {};
+  const hist = u && u.role === 'employee' ? db.requests.filter(r => r.emp === u.id).sort(byNewest) : null;
+  const fld = (k, l, t, ph) => '<div class="field"><label for="uf-' + k + '">' + l + '</label><input class="input" id="uf-' + k + '" type="' + (t || 'text') + '" value="' + esc(v[k] || '') + '" autocomplete="off"' + (ph ? ' placeholder="' + ph + '"' : '') + '><div class="ferr" id="uf-' + k + 'Err"></div></div>';
+  return '<div class="scrim" data-act="closeDrawer"></div><aside class="drawer" tabindex="-1" role="dialog" aria-modal="true" aria-labelledby="drT"><div class="dr-head"><h2 id="drT">' + (u ? 'Edit account' : 'Add employee') + '</h2><button class="x" data-act="closeDrawer" aria-label="Close">' + ic('x') + '</button></div>'
+    + '<div class="dr-body">' + fld('name', 'Full name') + fld('email', 'Work email', 'email') + fld('title', 'Position') + fld('dept', 'Department') + fld('phone', 'Phone number', 'tel')
+    + fld('pw', u ? 'New password (leave blank to keep the current one)' : 'Temporary password', 'password', 'At least 8 characters, with a letter and a number')
+    + (u ? '<label class="check"><input type="checkbox" id="uf-active"' + (u.active === false ? '' : ' checked') + '><span>Account is active</span></label>' : '')
+    + (hist ? '<h3 class="dr-h">Leave history</h3>' + (hist.length ? '<ul class="tl">' + hist.map(r => '<li class="' + (r.status === 'approved' ? 'done' : r.status === 'rejected' ? 'bad' : 'wait') + '"><i></i><b>' + esc(lt(r.type).name) + '</b><small>' + fmtRange(r.start, r.end) + ', ' + pl(r.days, 'working day') + '</small>' + pill(r.status) + '</li>').join('') + '</ul>' : '<p class="muted">No leave applications yet.</p>') : '')
+    + '</div><div class="dr-foot"><button class="btn" data-act="closeDrawer">Cancel</button><button class="btn primary" data-act="saveUser" data-id="' + (u ? u.id : 'new') + '">Save account</button></div></aside>';
+}
+function openUser(id){
+  if (sUser().role !== 'admin') return;
+  ui.lastFocus = document.activeElement;
+  const root = $('#drawerRoot'); root.innerHTML = userDrawerHTML(id); ui.drawer = id; syncLock();
+  requestAnimationFrame(() => requestAnimationFrame(() => { root.classList.add('open'); const d = $('.drawer', root); if (d) d.focus(); }));
+}
+function saveUser(id){
+  const a = sUser(); if (a.role !== 'admin') return;
+  const g = k => $('#uf-' + k).value.trim(), isNew = id === 'new', u = isNew ? null : usr(id);
+  const email = g('email').toLowerCase(), pw = $('#uf-pw').value, errs = {};
+  document.querySelectorAll('#drawerRoot .ferr').forEach(e => e.textContent = '');
+  if (!g('name')) errs.name = 'Enter the full name.';
+  if (!/^\S+@\S+\.\S+$/.test(email)) errs.email = 'Enter a valid email, like name@company.com.';
+  else if (db.users.some(x => x.email === email && x !== u)) errs.email = 'Another account already uses this email.';
+  if (!g('title')) errs.title = 'Enter the position.';
+  if (!g('dept')) errs.dept = 'Enter the department.';
+  if (g('phone') && !/^[0-9+()\-\s]{7,20}$/.test(g('phone'))) errs.phone = 'Use digits, spaces, + or - only.';
+  if ((isNew || pw) && (pw.length < 8 || !/[A-Za-z]/.test(pw) || !/\d/.test(pw))) errs.pw = 'Use at least 8 characters with a letter and a number.';
+  const ks = Object.keys(errs);
+  if (ks.length) { ks.forEach(k => $('#uf-' + k + 'Err').textContent = errs[k]); $('#uf-' + ks[0]).focus(); return; }
+  const rec = isNew ? { id: 'u' + (db.seq++), role: 'employee', c: ['#0F8B8D', '#3F7D3A', '#2F6FDE', '#C9602D', '#7A4FB5'][db.users.length % 5] } : u;
+  Object.assign(rec, { name: g('name'), email, title: g('title'), dept: g('dept'), phone: g('phone') });
+  if (isNew || pw) { rec.salt = 'ls-' + rec.id + '-' + Math.random().toString(36).slice(2); rec.hash = sha256(rec.salt + pw); }
+  rec.active = isNew || u === a || $('#uf-active').checked;
+  if (isNew) db.users.push(rec);
+  logAct(a.name + (isNew ? ' created the account of ' : ' updated the account of ') + rec.name + '.');
+  saveDB(); closeDrawer(); paintMain(false);
+  toast(isNew ? 'Account created for ' + rec.name + '.' : 'Account saved.');
+}
+function viewProfile(u){
+  const rows = [['Full name', u.name], ['Work email', u.email], ['Position', u.title], ['Department', u.dept], ['Role', ROLE[u.role]]].map(([k, v]) => '<dt>' + k + '</dt><dd>' + esc(v) + '</dd>').join('');
+  return '<div class="ph"><div><h1>My profile</h1><p>Contact the administrator to change anything except your phone number.</p></div></div>'
+    + '<div class="card" style="max-width:560px"><div class="dr-who">' + avatar(u, true) + '<div><b>' + esc(u.name) + '</b><small>' + esc(u.title) + '</small></div></div><dl class="dl">' + rows + '</dl>'
+    + '<div class="field"><label for="pf-phone">Phone number</label><input class="input" id="pf-phone" type="tel" value="' + esc(u.phone || '') + '" autocomplete="tel"><div class="ferr" id="pf-phoneErr"></div></div><button class="btn primary" data-act="saveProfile">Save phone number</button></div>';
+}
+function saveProfile(){
+  const u = sUser(), v = $('#pf-phone').value.trim();
+  if (v && !/^[0-9+()\-\s]{7,20}$/.test(v)) { $('#pf-phoneErr').textContent = 'Use digits, spaces, + or - only.'; return; }
+  $('#pf-phoneErr').textContent = ''; u.phone = v; saveDB(); toast('Phone number saved.');
+}
+
+function viewTypes(){
+  const rows = db.leaveTypes.map(t => '<tr class="' + (t.active ? '' : 'off') + '"><td><b>' + esc(t.name) + '</b></td><td class="num">' + pl(t.entitled, 'day') + '</td><td>' + (t.requiresDoc ? 'Yes' : 'No') + '</td><td><div class="sw-cell"><button type="button" class="switch" role="switch" aria-checked="' + t.active + '" aria-label="' + esc(t.name) + ' is active" data-act="toggleType" data-id="' + t.id + '"></button><span class="tstat">' + (t.active ? 'Active' : 'Inactive') + '</span></div></td></tr>').join('');
+  return '<div class="ph"><div><h1>Leave types</h1><p>Yearly entitlement per leave type. Inactive types cannot be requested.</p></div></div>'
+    + '<div class="tbl-wrap"><table class="tbl"><thead><tr><th>Leave type</th><th class="num">Yearly entitlement</th><th>Needs document</th><th>Status</th></tr></thead><tbody>' + rows + '</tbody></table></div>';
+}
+
+function viewActivity(){
+  const items = db.activity.slice(0, 20).map(a => '<li><i></i><span class="when">' + relDate(a.date) + '</span><span>' + esc(a.text) + '</span></li>').join('');
+  return '<div class="ph"><div><h1>Activity</h1><p>Recent actions recorded by the system.</p></div></div><div class="card"><ul class="feed">' + items + '</ul></div>';
+}
+const VIEWS = { dashboard: viewDashboard, apply: viewApply, requests: u => u.role === 'admin' ? viewAll() : viewRequests(u), profile: viewProfile, overview: viewOverview, users: viewUsers, types: viewTypes, reports: viewReports, activity: viewActivity };
+
+/* ---------- request drawer ---------- */
+function canSee(r, u){ return r.emp === u.id || u.role === 'admin'; }
+function drawerHTML(r, u){
+  const emp = usr(r.emp), t = lt(r.type);
+  const review = u.role === 'admin' && r.status === 'pending';
+  const owner = r.emp === u.id;
+  const a = avail(r.emp, r.type);
+  let tl = '<li class="done"><i></i><b>Submitted</b><small>' + fmtDate(r.submitted) + '</small></li>';
+  if (r.status === 'pending') tl += '<li class="wait"><i></i><b>Waiting for the administrator</b><small>Decision pending</small></li>';
+  else tl += '<li class="' + (r.status === 'approved' ? 'done' : 'bad') + '"><i></i><b>' + cap(r.status) + ' by ' + esc(usr(r.decidedBy).name) + '</b><small>' + fmtDate(r.decidedAt) + '</small>' + (r.note ? '<div class="quote">' + esc(r.note) + '</div>' : '') + '</li>';
+  let extra = '', foot = '';
+  if (review) {
+    const clash = db.requests.filter(x => x.id !== r.id && x.emp !== r.emp && (x.status === 'pending' || x.status === 'approved') && x.start <= r.end && r.start <= x.end);
+    const names = [...new Set(clash.map(x => first(usr(x.emp))))];
+    extra = '<div class="impact"><span>' + esc(first(emp)) + '\u2019s ' + esc(t.name.toLowerCase()) + '</span><b>' + pl(a + r.days, 'day') + ' before, ' + a + ' after</b></div>'
+      + (names.length ? '<div class="callout">' + ic('alert') + '<span>' + esc(names.join(' and ')) + ' also ' + (names.length > 1 ? 'have' : 'has') + ' leave that overlaps these dates.</span></div>' : '')
+      + '<div class="field" style="margin-top:18px"><label for="decNote">Remarks for ' + esc(first(emp)) + ' <span class="muted">(required when rejecting)</span></label><textarea class="input area" id="decNote"></textarea><div class="ferr" id="decErr"></div></div>';
+    foot = '<button class="btn danger" data-act="decide" data-id="' + r.id + '" data-d="rejected">Reject</button><button class="btn primary" data-act="decide" data-id="' + r.id + '" data-d="approved">Approve</button>';
+  }
+  return '<div class="scrim" data-act="closeDrawer"></div><aside class="drawer" tabindex="-1" role="dialog" aria-modal="true" aria-labelledby="drT">'
+    + '<div class="dr-head"><h2 id="drT">' + (review ? 'Review request' : 'Leave request') + '</h2><button class="x" data-act="closeDrawer" aria-label="Close">' + ic('x') + '</button></div>'
+    + '<div class="dr-body"><div class="dr-who">' + avatar(emp, true) + '<div><b>' + esc(emp.name) + '</b><small>' + esc(emp.title) + '</small></div></div>'
+    + '<dl class="dl"><dt>Status</dt><dd>' + pill(r.status) + '</dd><dt>Leave type</dt><dd>' + esc(t.name) + '</dd><dt>Dates</dt><dd>' + fmtRange(r.start, r.end) + '</dd><dt>Working days</dt><dd>' + r.days + '</dd><dt>Reason</dt><dd>' + esc(r.reason) + '</dd><dt>Document</dt><dd>' + (r.doc ? '<a class="link" href="' + r.doc.data + '" download="' + esc(r.doc.name) + '">' + esc(r.doc.name) + '</a>' : t.requiresDoc ? 'Not attached' : 'Not required') + '</dd></dl>'
+    + '<h3 class="dr-h">Progress</h3><ul class="tl">' + tl + '</ul>' + extra + '</div>'
+    + (foot ? '<div class="dr-foot">' + foot + '</div>' : '') + '</aside>';
+}
+function openReq(id){
+  const r = rq(id), u = sUser();
+  if (!r || !u || !canSee(r, u)) return;
+  ui.lastFocus = document.activeElement;
+  const root = $('#drawerRoot');
+  root.innerHTML = drawerHTML(r, u);
+  ui.drawer = id; syncLock();
+  requestAnimationFrame(() => requestAnimationFrame(() => { root.classList.add('open'); const d = $('.drawer', root); if (d) d.focus(); }));
+}
+function closeDrawer(){
+  const root = $('#drawerRoot');
+  if (!root || ui.drawer == null) return;
+  ui.drawer = null; syncLock();
+  root.classList.remove('open');
+  setTimeout(() => { if (ui.drawer == null) root.innerHTML = ''; }, 340);
+  if (ui.lastFocus && ui.lastFocus.focus && document.contains(ui.lastFocus)) ui.lastFocus.focus();
+}
+function decide(id, action){
+  const r = rq(id), u = sUser();
+  if (!r || r.status !== 'pending' || u.role !== 'admin') return;
+  const emp = usr(r.emp), note = ($('#decNote') ? $('#decNote').value : '').trim();
+  if (action === 'rejected' && !note) { $('#decErr').textContent = 'Add a reason so ' + first(emp) + ' knows why.'; $('#decNote').focus(); return; }
+  r.status = action; r.decidedBy = u.id; r.decidedAt = today(); r.note = note;
+  const b = bal(r.emp, r.type);
+  b.pending -= r.days;
+  if (action === 'approved') b.used += r.days;
+  logAct(u.name + ' ' + action + ' ' + emp.name + '\u2019s ' + lt(r.type).name.toLowerCase() + ' request.');
+  saveDB();
+  closeDrawer();
+  paintMain(false); paintNav();
+  toast(action === 'approved' ? 'Approved. ' + pl(r.days, 'day') + ' deducted from ' + first(emp) + '\u2019s balance.' : 'Rejected. The days went back to ' + first(emp) + '\u2019s balance.');
+}
+
+/* ---------- modal ---------- */
+let modalCfg = null;
+function syncLock(){ document.documentElement.classList.toggle('lock', !!modalCfg || ui.drawer != null); }
+function openModal(cfg){
+  modalCfg = cfg;
+  const root = $('#modalRoot');
+  ui.modalReturn = document.activeElement;
+  syncLock();
+  root.innerHTML = '<div class="scrim" data-act="modalCancel"></div><div class="modal-wrap"><div class="modal' + (cfg.danger ? ' danger' : '') + '" role="dialog" aria-modal="true" aria-labelledby="mt" aria-describedby="md"><div class="modal-ic">' + ic('alert') + '</div><h3 id="mt">' + esc(cfg.title) + '</h3><p id="md">' + esc(cfg.body) + '</p><div class="modal-foot"><button class="btn" data-act="modalCancel">' + esc(cfg.cancel || 'Cancel') + '</button><button class="btn ' + (cfg.danger ? 'solid-danger' : 'primary') + '" id="modalOk" data-act="modalOk">' + esc(cfg.ok) + '</button></div></div></div>';
+  requestAnimationFrame(() => requestAnimationFrame(() => { root.classList.add('open'); const b = $('#modalOk'); if (b) b.focus(); }));
+}
+function closeModal(){
+  const root = $('#modalRoot');
+  modalCfg = null; root.classList.remove('open'); syncLock();
+  setTimeout(() => { if (!modalCfg) root.innerHTML = ''; }, 300);
+  const back = ui.modalReturn; ui.modalReturn = null;
+  if (back && back.focus && document.contains(back)) back.focus();
+}
+
+/* ---------- painting ---------- */
+/* Liquid glass indicator: the leading edge races to the new item, then the trailing edge catches up a beat later. */
+let navTimer = null;
+function moveNavInd(ind, a){
+  const to = a.offsetTop, h = a.offsetHeight;
+  if (ind.dataset.to === String(to) && ind.style.height) return;
+  ind.dataset.to = to;
+  clearTimeout(navTimer);
+  const set = (y, ht, sx, ms, ease) => {
+    ind.style.transition = ms ? 'transform ' + ms + 'ms ' + ease + ', height ' + ms + 'ms ' + ease : 'none';
+    ind.style.height = ht + 'px';
+    ind.style.transform = 'translateY(' + y + 'px) scaleX(' + sx + ')';
+  };
+  if (!ind.classList.contains('ready') || REDUCE) { set(to, h, 1, 0); return; }
+  const navTop = ind.parentElement.getBoundingClientRect().top, r = ind.getBoundingClientRect();
+  const curTop = r.top - navTop, curBot = curTop + r.height;
+  const top = Math.min(curTop, to), bot = Math.max(curBot, to + h);
+  set(top, bot - top, .94, 190, 'cubic-bezier(.3,.8,.4,1)');
+  navTimer = setTimeout(() => set(to, h, 1, 540, 'cubic-bezier(.34,1.35,.64,1)'), 130);
+}
+function paintNav(){
+  const u = sUser(); if (!u || !$('#nav')) return;
+  const ind = $('#navInd');
+  document.querySelectorAll('.nav-item').forEach(a => {
+    const on = a.dataset.view === ui.view;
+    a.classList.toggle('active', on);
+    if (on) { a.setAttribute('aria-current', 'page'); moveNavInd(ind, a); } else a.removeAttribute('aria-current');
+  });
+  const qb = $('#qBadge');
+  if (qb) { const n = pendingAll().length; qb.textContent = n; qb.hidden = !n; }
+  if (!ind.classList.contains('ready')) requestAnimationFrame(() => ind.classList.add('ready'));
+}
+let viewTimer = null;
+function paintMain(animate){
+  const u = sUser(), page = $('#page'); if (!u || !page) return;
+  page.innerHTML = VIEWS[ui.view](u);
+  page.classList.remove('view-in');
+  if (animate) { void page.offsetWidth; page.classList.add('view-in'); window.scrollTo(0, 0); clearTimeout(viewTimer); viewTimer = setTimeout(() => page.classList.remove('view-in'), 1200); }
+  afterPaint(page);
+  if (ui.view === 'apply') updateApplySummary();
+  if (ui.highlight) { const row = $('[data-rid="' + ui.highlight + '"]', page); if (row) row.classList.add('row-flash'); ui.highlight = null; }
+  document.title = (ui.view === 'requests' && u.role === 'admin' ? 'Applications' : TITLES[ui.view]) + ' | Leave system';
+}
+function render(){
+  const app = $('#app'), u = sUser();
+  document.documentElement.classList.toggle('on-auth', !u);
+  if (!u) {
+    if (mounted !== 'login') {
+      closeDrawerNow(); closeSels(); clearInterval(lockTimer);
+      app.innerHTML = loginHTML(); mounted = 'login'; document.title = 'Sign in | Leave system';
+      const e = $('#email'); if (e && matchMedia('(min-width:901px)').matches) e.focus();
+    }
+    return;
+  }
+  if (mounted !== 'shell:' + u.id) { app.innerHTML = shellHTML(u); mounted = 'shell:' + u.id; ui.view = null; }
+  let v = location.hash.replace(/^#\/?/, '');
+  if (!ROUTES[u.role].includes(v)) { v = ROUTES[u.role][0]; setHash(v, true); }
+  const changed = v !== ui.view;
+  if (changed) { ui.view = v; ui.filters = { status: 'all', emp: 'all', role: 'all', q: '', type: 'all', from: '', to: '' }; ui.tried = false; ui.upload = null; closeDrawerNow(); closeNav(); }
+  paintMain(changed); paintNav();
+}
+function closeDrawerNow(){ ui.drawer = null; syncLock(); const r = $('#drawerRoot'); if (r) { r.classList.remove('open'); r.innerHTML = ''; } }
+function closeNav(){ const s = $('#shell'); if (s) s.classList.remove('nav-open'); }
+function closeUMenu(){ const m = $('#umenu'); if (m) m.classList.remove('open'); const b = $('.ubtn'); if (b) b.setAttribute('aria-expanded', 'false'); }
+
+/* ---------- events ---------- */
+function onAct(act, el){
+  switch (act) {
+    case 'forgot': toast('Password reset is not part of this prototype. Ask your administrator.', 'err'); break;
+    case 'togglePw': { const i = $('#password'), show = i.type === 'password'; i.type = show ? 'text' : 'password'; el.innerHTML = ic(show ? 'eye-off' : 'eye'); el.setAttribute('aria-label', show ? 'Hide password' : 'Show password'); i.focus(); break; }
+    case 'umenu': el.setAttribute('aria-expanded', $('#umenu').classList.toggle('open')); break;
+    case 'demo': selHandlers.demo(el.dataset.id); break;
+    case 'skip': { const m = $('#page') || $('#email'); if (m) m.focus(); break; }
+    case 'logout': closeUMenu(); logout(); break;
+    case 'reset': closeUMenu(); openModal({ title: 'Reset sample data?', body: 'Requests you created and any changes to leave types will be removed. Accounts stay the same.', ok: 'Reset data', danger: true, onOk: () => { db = seed(); saveDB(); paintMain(false); paintNav(); toast('Sample data was reset.'); } }); break;
+    case 'navOpen': $('#shell').classList.add('nav-open'); break;
+    case 'navClose': closeNav(); break;
+    case 'go': go(el.dataset.view); break;
+    case 'print': window.print(); break;
+    case 'openUser': openUser(el.dataset.id); break;
+    case 'saveUser': saveUser(el.dataset.id); break;
+    case 'saveProfile': saveProfile(); break;
+    case 'openReq': openReq(+el.dataset.id); break;
+    case 'closeDrawer': closeDrawer(); break;
+    case 'decide': decide(+el.dataset.id, el.dataset.d); break;
+    case 'modalOk': { const cb = modalCfg && modalCfg.onOk; closeModal(); if (cb) cb(); break; }
+    case 'modalCancel': closeModal(); break;
+    case 'chip': {
+      const s = $('#f-start'); if (!s.value) s.value = toISO(wd(7));
+      $('#f-end').value = toISO(endAfter(parseISO(s.value), +el.dataset.n)); updateApplySummary(); break;
+    }
+    case 'submitReq': submitRequest(); break;
+    case 'toggleType': {
+      const t = lt(el.dataset.id), u = sUser(); if (u.role !== 'admin') break;
+      t.active = !t.active;
+      logAct(u.name + (t.active ? ' activated ' : ' deactivated ') + t.name.toLowerCase() + '.');
+      saveDB();
+      el.setAttribute('aria-checked', t.active);
+      const tr = el.closest('tr'); tr.classList.toggle('off', !t.active); $('.tstat', tr).textContent = t.active ? 'Active' : 'Inactive';
+      toast(t.name + (t.active ? ' is now active.' : ' is now inactive.'));
+      break;
+    }
+  }
+}
+document.addEventListener('click', e => {
+  const t = e.target;
+  const opt = t.closest('.sel-list [role=option]');
+  if (opt) { chooseSel(opt.closest('.sel'), opt); return; }
+  const sb = t.closest('.sel-btn');
+  if (sb) {
+    if (e.detail === 0 && Date.now() < suppressClickUntil) return;
+    const s = sb.closest('.sel');
+    if (s.classList.contains('open')) closeSels(); else openSel(s);
+    return;
+  }
+  closeSels();
+  if (!t.closest('.side-foot')) closeUMenu();
+  if (t.closest('.nav-item')) closeNav();
+  const a = t.closest('[data-act]');
+  if (a) { if (a.tagName === 'A') e.preventDefault(); onAct(a.dataset.act, a); }
+});
+function trapTab(e){
+  const box = modalCfg ? $('#modalRoot .modal') : (ui.drawer != null ? $('#drawerRoot .drawer') : null);
+  if (!box) return;
+  const f = [...box.querySelectorAll('button,[href],input,textarea,[tabindex]:not([tabindex="-1"])')].filter(x => !x.disabled && x.offsetParent !== null);
+  if (!f.length) { e.preventDefault(); return; }
+  const first = f[0], last = f[f.length - 1], cur = document.activeElement;
+  if (!box.contains(cur)) { e.preventDefault(); first.focus(); }
+  else if (e.shiftKey && (cur === first || cur === box)) { e.preventDefault(); last.focus(); }
+  else if (!e.shiftKey && cur === last) { e.preventDefault(); first.focus(); }
+}
+document.addEventListener('keydown', e => {
+  if (e.key === 'Tab' && (modalCfg || ui.drawer != null)) trapTab(e);
+  const s = e.target.closest && e.target.closest('.sel');
+  if (s && selKey(e, s)) return;
+  if (e.key === 'Escape') {
+    if (modalCfg) closeModal();
+    else if (ui.drawer != null) closeDrawer();
+    else { closeSels(); closeUMenu(); closeNav(); }
+    return;
+  }
+  if (e.key === 'Enter' && e.target.matches && e.target.matches('[data-act][tabindex="0"]')) { e.preventDefault(); e.target.click(); }
+});
+document.addEventListener('submit', e => {
+  e.preventDefault();
+  if (e.target.id === 'loginForm') doLogin();
+});
+document.addEventListener('input', e => {
+  const t = e.target;
+  if (t.closest && t.closest('#loginForm')) {
+    const f = t.closest('.field'); if (f && f.classList.contains('err')) { f.classList.remove('err'); const er = $('.ferr', f); if (er) er.textContent = ''; }
+  }
+  if (t.closest && t.closest('#applyForm')) {
+    if (t.id === 'f-start' && $('#f-end').value < t.value) $('#f-end').value = t.value;
+    updateApplySummary();
+  }
+  if (t.id === 'userSearch') {
+    ui.filters.q = t.value;
+    const r = usersRows(); $('#usersBody').innerHTML = r.html; $('#usersCount').textContent = pl(r.list.length, 'person').replace('persons', 'people');
+  }
+});
+document.addEventListener('change', e => {
+  const t = e.target;
+  if (t.id === 'f-doc') {
+    const f = t.files[0], er = $('#f-docErr'); ui.upload = null; er.textContent = '';
+    if (f && (!/\.(pdf|jpe?g|png)$/i.test(f.name) || !/^(application\/pdf|image\/(jpeg|png))$/.test(f.type))) { er.textContent = 'Attach a PDF, JPG or PNG file.'; t.value = ''; }
+    else if (f && f.size > 1048576) { er.textContent = 'The file is larger than 1 MB.'; t.value = ''; }
+    else if (f) { const fr = new FileReader(); fr.onload = () => { ui.upload = { name: f.name, size: f.size, data: fr.result }; updateApplySummary(); }; fr.readAsDataURL(f); }
+    updateApplySummary();
+  }
+  if (t.id === 'rp-from' || t.id === 'rp-to') { ui.filters[t.id === 'rp-from' ? 'from' : 'to'] = t.value; paintMain(false); }
+});
+addEventListener('hashchange', render);
+['pointerdown', 'keydown', 'scroll'].forEach(ev => addEventListener(ev, () => { lastActive = Date.now(); }, { passive: true }));
+setInterval(() => {
+  if (!session) return;
+  if (Date.now() - lastActive > IDLE_MS) logout('idle');
+  else if (session.exp < Date.now()) logout('expired');
+}, 15000);
+
+/* ---------- boot ---------- */
+db = loadDB();
+session = loadSession();
+render();
+</script>
+</body>
+</html>
