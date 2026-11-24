@@ -11,6 +11,7 @@ use App\Models\LeaveType;
 use App\Models\RequestHistory;
 use App\Models\User;
 use App\Support\AdminGuard;
+use App\Support\AttachmentFile;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -134,16 +135,18 @@ class LeaveController extends Controller
 
         $attachmentPath = null;
         $attachmentName = null;
+        $attachmentOriginalName = null;
 
         if ($request->hasFile('attachment')) {
             $file = $request->file('attachment');
-            $attachmentName = $file->getClientOriginalName();
+            $attachmentName = AttachmentFile::sanitizeOriginalName($file->getClientOriginalName());
+            $attachmentOriginalName = $attachmentName;
             $ext = $file->getClientOriginalExtension();
             $storedName = Str::random(40) . ($ext ? '.' . $ext : '');
             $attachmentPath = $file->storeAs('attachments', $storedName, 'local');
         }
 
-        $leaveRequest = DB::transaction(function () use ($user, $request, $days, $year, $attachmentPath, $attachmentName) {
+        $leaveRequest = DB::transaction(function () use ($user, $request, $days, $year, $attachmentPath, $attachmentName, $attachmentOriginalName) {
             $record = LeaveRequest::create([
                 'user_id' => $user->id,
                 'leave_type_id' => $request->input('leave_type_id'),
@@ -154,6 +157,7 @@ class LeaveController extends Controller
                 'status' => 'pending',
                 'attachment_path' => $attachmentPath,
                 'attachment_name' => $attachmentName,
+                'attachment_original_name' => $attachmentOriginalName,
             ]);
 
             // Update user balance pending days
@@ -236,8 +240,9 @@ class LeaveController extends Controller
                 'end_date' => $leaveRequest->end_date->format('M d, Y'),
                 'reason' => $leaveRequest->reason,
                 'has_attachment' => ! empty($leaveRequest->attachment_path),
-                'attachment_name' => $leaveRequest->attachment_name,
+                'attachment_name' => AttachmentFile::displayName($leaveRequest),
                 'download_url' => route('requests.attachment', $leaveRequest),
+                'preview_url' => route('requests.attachment.preview', $leaveRequest),
                 'can_cancel' => Auth::user()->can('cancel', $leaveRequest),
                 'histories' => $leaveRequest->histories->map(fn ($h) => [
                     'status_to' => ucfirst($h->status_to),
@@ -248,7 +253,10 @@ class LeaveController extends Controller
             ]);
         }
 
-        return view('employee.show', compact('leaveRequest', 'waitingForAdmin'));
+        $attachmentMime = AttachmentFile::mimeType($leaveRequest);
+        $attachmentName = AttachmentFile::displayName($leaveRequest);
+
+        return view('employee.show', compact('leaveRequest', 'waitingForAdmin', 'attachmentMime', 'attachmentName'));
     }
 
     /**
@@ -317,7 +325,37 @@ class LeaveController extends Controller
 
         return Storage::disk('local')->download(
             $leaveRequest->attachment_path,
-            $leaveRequest->attachment_name ?: 'attachment'
+            AttachmentFile::displayName($leaveRequest),
+            [
+                'X-Content-Type-Options' => 'nosniff',
+                'Cache-Control' => 'private, no-store',
+            ]
+        );
+    }
+
+    /**
+     * Secure inline preview behind the same Policy and file checks.
+     * The MIME type comes from file content, never from the upload name.
+     */
+    public function previewAttachment(LeaveRequest $leaveRequest): StreamedResponse
+    {
+        $this->authorize('previewAttachment', $leaveRequest);
+
+        $mime = AttachmentFile::mimeType($leaveRequest);
+
+        if ($mime === null) {
+            abort(404, 'Attachment preview not found.');
+        }
+
+        return Storage::disk('local')->response(
+            $leaveRequest->attachment_path,
+            AttachmentFile::displayName($leaveRequest),
+            [
+                'Content-Type' => $mime,
+                'X-Content-Type-Options' => 'nosniff',
+                'Cache-Control' => 'private, no-store',
+            ],
+            'inline'
         );
     }
 

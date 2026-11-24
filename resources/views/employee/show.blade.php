@@ -49,13 +49,7 @@
 
     <dt>Attachment</dt>
     <dd>
-      @if ($leaveRequest->attachment_path)
-        <a class="link" href="{{ route('requests.attachment', $leaveRequest) }}" style="color:var(--lagoon-700);font-weight:600;">
-          Download {{ $leaveRequest->attachment_name ?: 'Supporting Document' }}
-        </a>
-      @else
-        <span class="muted">No document attached</span>
-      @endif
+      @include('partials.attachment-preview', ['emptyLabel' => 'No document attached'])
     </dd>
   </dl>
 

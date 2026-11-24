@@ -23,7 +23,7 @@ class EnsureUserHasRole
         $userRole = Auth::user()->role;
 
         if (! in_array($userRole, $roles, true)) {
-            abort(403, 'Unauthorized access for your account role.');
+            return redirect()->route(Auth::user()->dashboardRoute());
         }
 
         return $next($request);

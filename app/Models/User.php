@@ -88,4 +88,9 @@ class User extends Authenticatable
     {
         return $this->roleRelation?->name === 'admin';
     }
+
+    public function dashboardRoute(): string
+    {
+        return $this->role === 'admin' ? 'overview' : 'dashboard';
+    }
 }

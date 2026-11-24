@@ -30,7 +30,7 @@ class AuthController extends Controller
     public function showLogin(): View|RedirectResponse
     {
         if (Auth::check()) {
-            return redirect()->intended('/dashboard');
+            return redirect()->route(Auth::user()->dashboardRoute());
         }
 
         return view('auth.login');
@@ -71,6 +71,7 @@ class AuthController extends Controller
             $remember = $request->boolean('remember');
             Auth::login($user, $remember);
             $request->session()->regenerate();
+            $request->session()->flash('splash', true);
 
             if ($remember) {
                 $timestamp = now()->timestamp;
@@ -91,7 +92,7 @@ class AuthController extends Controller
                 return redirect()->route('password.change');
             }
 
-            return redirect()->intended('/dashboard');
+            return redirect()->intended(route(Auth::user()->dashboardRoute()));
         }
 
         // Failure: increment failure count, lock for 300 seconds if threshold reached

@@ -52,11 +52,7 @@
 
     <dt>Document</dt>
     <dd>
-      @can('downloadAttachment', $leaveRequest)
-        <a class="link" href="{{ route('requests.attachment', $leaveRequest) }}">Download {{ $leaveRequest->attachment_name ?: 'Supporting Document' }}</a>
-      @else
-        <span class="muted">Not attached</span>
-      @endcan
+      @include('partials.attachment-preview', ['emptyLabel' => 'Not attached'])
     </dd>
   </dl>
 

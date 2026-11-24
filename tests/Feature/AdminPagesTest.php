@@ -211,18 +211,18 @@ class AdminPagesTest extends TestCase
     {
         $adminNav = $this->actingAs($this->admin)->get('/overview')->assertOk()->getContent();
 
-        foreach (['Dashboard', 'Applications', 'Approvals', 'My leave', 'Employees', 'Balances', 'Reports', 'Activity', 'Settings'] as $label) {
+        foreach (['Dashboard', 'Applications', 'Approvals', 'Employees', 'Balances', 'Reports', 'My leave', 'Settings'] as $label) {
             $this->assertStringContainsString('<span>' . $label . '</span>', $adminNav);
         }
 
-        foreach (['Organization', 'Leave types', '<span>Roles</span>'] as $label) {
+        foreach (['<span>Activity</span>', 'Organization', 'Leave types', '<span>Roles</span>'] as $label) {
             $this->assertStringNotContainsString($label, $adminNav);
         }
 
         preg_match_all('/<svg class="ic" viewBox="0 0 24 24" aria-hidden="true">(.*?)<\/svg>/s', $adminNav, $matches);
-        $svgs = array_slice($matches[1] ?? [], 0, 9);
-        $this->assertCount(9, $svgs);
-        $this->assertCount(9, array_unique($svgs));
+        $svgs = array_slice($matches[1] ?? [], 0, 8);
+        $this->assertCount(8, $svgs);
+        $this->assertCount(8, array_unique($svgs));
 
         $employeeNav = $this->actingAs($this->employee)->get('/dashboard')->assertOk()->getContent();
 
@@ -234,15 +234,23 @@ class AdminPagesTest extends TestCase
         $this->assertStringNotContainsString('<span>Settings</span>', $employeeNav);
     }
 
+    public function test_employee_balances_page_marks_balances_nav_as_active(): void
+    {
+        $html = $this->actingAs($this->employee)->get(route('balances.employee'))->assertOk()->getContent();
+
+        $this->assertStringContainsString('<a class="nav-item active" href="' . route('balances.employee') . '"', $html);
+        $this->assertStringNotContainsString('<a class="nav-item active" href="' . route('requests') . '"', $html);
+    }
+
     public function test_non_admin_cannot_open_admin_urls(): void
     {
         foreach (['/overview', '/applications', '/users', '/users/create', '/approvals', '/settings', '/settings/departments', '/settings/positions', '/settings/leave-types', '/balances', '/reports', '/activity'] as $url) {
-            $this->actingAs($this->employee)->get($url)->assertForbidden();
+            $this->actingAs($this->employee)->get($url)->assertRedirect(route('dashboard'));
         }
 
-        $this->actingAs($this->employee)->post('/users', [])->assertForbidden();
-        $this->actingAs($this->employee)->post('/settings/departments', [])->assertForbidden();
-        $this->actingAs($this->employee)->get('/reports/export')->assertForbidden();
+        $this->actingAs($this->employee)->post('/users', [])->assertRedirect(route('dashboard'));
+        $this->actingAs($this->employee)->post('/settings/departments', [])->assertRedirect(route('dashboard'));
+        $this->actingAs($this->employee)->get('/reports/export')->assertRedirect(route('dashboard'));
     }
 
     public function test_admin_creates_user_with_one_time_password_and_forced_change(): void
@@ -465,7 +473,7 @@ class AdminPagesTest extends TestCase
 
         $this->actingAs($this->employee)
             ->post(route('admin.users.temporary-password.reset', $this->admin))
-            ->assertForbidden();
+            ->assertRedirect(route('dashboard'));
 
         $this->actingAs($this->admin)
             ->get(route('admin.users.temporary-password.reset', $this->employee))

@@ -206,6 +206,88 @@
       }
     });
 
+    // Attachment preview modal: delegated handlers, no inline JS.
+    const previewRoot = document.getElementById('modalRoot');
+    let previewReturnFocus = null;
+
+    const closeAttachmentPreview = () => {
+      if (!previewRoot || !previewRoot.classList.contains('open')) return;
+      previewRoot.classList.remove('open');
+      document.documentElement.classList.remove('lock');
+      window.setTimeout(() => { previewRoot.innerHTML = ''; }, 300);
+      if (previewReturnFocus && typeof previewReturnFocus.focus === 'function') {
+        previewReturnFocus.focus();
+      }
+      previewReturnFocus = null;
+    };
+
+    document.addEventListener('click', (event) => {
+      const target = event.target;
+
+      const opener = target.closest('[data-attachment-preview]');
+      if (opener) {
+        event.preventDefault();
+        if (!previewRoot) return;
+
+        previewReturnFocus = opener;
+        previewRoot.innerHTML = '';
+
+        const scrim = document.createElement('div');
+        scrim.className = 'scrim';
+        scrim.setAttribute('data-attachment-preview-close', '');
+
+        const wrap = document.createElement('div');
+        wrap.className = 'modal-wrap';
+
+        const modal = document.createElement('div');
+        modal.className = 'modal';
+        modal.setAttribute('role', 'dialog');
+        modal.setAttribute('aria-modal', 'true');
+        modal.setAttribute('aria-label', 'Attachment preview');
+
+        const head = document.createElement('div');
+        head.className = 'dr-head';
+
+        const title = document.createElement('h3');
+        title.textContent = opener.dataset.previewName || 'Attachment';
+
+        const close = document.createElement('button');
+        close.type = 'button';
+        close.className = 'x';
+        close.setAttribute('aria-label', 'Close preview');
+        close.setAttribute('data-attachment-preview-close', '');
+        close.innerHTML = '<svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg>';
+
+        head.appendChild(title);
+        head.appendChild(close);
+
+        const image = document.createElement('img');
+        image.src = opener.dataset.previewUrl;
+        image.alt = opener.dataset.previewName || 'Attachment';
+        image.style.cssText = 'display:block;max-width:100%;max-height:70vh;margin:0 auto;';
+
+        modal.appendChild(head);
+        modal.appendChild(image);
+        wrap.appendChild(modal);
+
+        previewRoot.appendChild(scrim);
+        previewRoot.appendChild(wrap);
+        previewRoot.classList.add('open');
+        document.documentElement.classList.add('lock');
+        close.focus();
+        return;
+      }
+
+      if (target.closest('[data-attachment-preview-close]')) {
+        event.preventDefault();
+        closeAttachmentPreview();
+      }
+    });
+
+    document.addEventListener('keydown', (event) => {
+      if (event.key === 'Escape') closeAttachmentPreview();
+    });
+
     // Form submit button loading spinner animation
     const loginForm = document.getElementById('loginForm');
     if (loginForm) {

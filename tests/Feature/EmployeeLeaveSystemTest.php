@@ -181,4 +181,99 @@ class EmployeeLeaveSystemTest extends TestCase
         $this->assertEquals('alice@company.test', $this->alice->email);
         $this->assertEquals('employee', $this->alice->role);
     }
+
+    public function test_weekend_spanning_range_counts_only_working_days(): void
+    {
+        $start = Carbon::now()->next(Carbon::FRIDAY);
+        $end = (clone $start)->addDays(3); // Fri, Sat, Sun, Mon = 2 working days
+
+        $response = $this->actingAs($this->alice)->post('/apply', [
+            'leave_type_id' => $this->annual->id,
+            'start_date' => $start->toDateString(),
+            'end_date' => $end->toDateString(),
+            'reason' => 'Two working days across the weekend',
+        ]);
+
+        $response->assertRedirect('/requests');
+
+        $this->assertDatabaseHas('leave_requests', [
+            'user_id' => $this->alice->id,
+            'start_date' => $start->toDateString() . ' 00:00:00',
+            'end_date' => $end->toDateString() . ' 00:00:00',
+            'days' => 2,
+        ]);
+    }
+
+    public function test_end_before_start_is_rejected(): void
+    {
+        $start = Carbon::now()->addDay();
+        $end = Carbon::now()->toDateString();
+
+        $response = $this->actingAs($this->alice)->post('/apply', [
+            'leave_type_id' => $this->annual->id,
+            'start_date' => $start->toDateString(),
+            'end_date' => $end,
+            'reason' => 'Invalid date range',
+        ]);
+
+        $response->assertSessionHasErrors('end_date');
+
+        $this->assertDatabaseMissing('leave_requests', [
+            'user_id' => $this->alice->id,
+            'start_date' => $start->toDateString(),
+        ]);
+    }
+
+    public function test_past_start_date_is_rejected(): void
+    {
+        $start = Carbon::now()->subDay();
+
+        $response = $this->actingAs($this->alice)->post('/apply', [
+            'leave_type_id' => $this->annual->id,
+            'start_date' => $start->toDateString(),
+            'end_date' => $start->toDateString(),
+            'reason' => 'Past date request',
+        ]);
+
+        $response->assertSessionHasErrors('start_date');
+    }
+
+    public function test_server_ignores_client_submitted_day_count(): void
+    {
+        $start = Carbon::now()->next(Carbon::MONDAY);
+        $end = (clone $start)->addDays(2); // Mon, Tue, Wed = 3 working days
+
+        $response = $this->actingAs($this->alice)->post('/apply', [
+            'leave_type_id' => $this->annual->id,
+            'start_date' => $start->toDateString(),
+            'end_date' => $end->toDateString(),
+            'reason' => 'Client tried to spoof the day count',
+            'days' => 99,
+            'working_days' => 99,
+            'workingDaysCount' => 99,
+        ]);
+
+        $response->assertRedirect('/requests');
+
+        $this->assertDatabaseHas('leave_requests', [
+            'user_id' => $this->alice->id,
+            'days' => 3,
+        ]);
+
+        $balance = LeaveBalance::where('user_id', $this->alice->id)
+            ->where('leave_type_id', $this->annual->id)
+            ->first();
+
+        $this->assertEquals(3, $balance->pending_days);
+    }
+
+    public function test_apply_page_uses_local_date_helpers_without_utc_shifting(): void
+    {
+        $response = $this->actingAs($this->alice)->get('/apply');
+
+        $response->assertOk();
+        $response->assertSee('js/date-utils.js', false);
+        $response->assertDontSee('toISOString', false);
+        $response->assertDontSee('getUTC', false);
+    }
 }

@@ -9,6 +9,7 @@ use App\Models\LeaveBalance;
 use App\Models\LeaveRequest;
 use App\Models\RequestHistory;
 use App\Models\User;
+use App\Support\AttachmentFile;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -83,7 +84,16 @@ class ApprovalController extends Controller
 
         $availableAfter = max(0, $availableBefore - (float) $leaveRequest->days);
 
-        return view('approvals.show', compact('leaveRequest', 'availableBefore', 'availableAfter'));
+        $attachmentMime = AttachmentFile::mimeType($leaveRequest);
+        $attachmentName = AttachmentFile::displayName($leaveRequest);
+
+        return view('approvals.show', compact(
+            'leaveRequest',
+            'availableBefore',
+            'availableAfter',
+            'attachmentMime',
+            'attachmentName'
+        ));
     }
 
     /**

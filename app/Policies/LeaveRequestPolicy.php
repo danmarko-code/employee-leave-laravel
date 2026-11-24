@@ -40,6 +40,19 @@ class LeaveRequestPolicy
 
     public function downloadAttachment(User $user, LeaveRequest $leaveRequest): bool
     {
+        return $this->canAccessAttachment($user, $leaveRequest);
+    }
+
+    /**
+     * Inline preview uses exactly the same access rule as download.
+     */
+    public function previewAttachment(User $user, LeaveRequest $leaveRequest): bool
+    {
+        return $this->canAccessAttachment($user, $leaveRequest);
+    }
+
+    private function canAccessAttachment(User $user, LeaveRequest $leaveRequest): bool
+    {
         return ((int) $user->id === (int) $leaveRequest->user_id || $user->isAdmin())
             && ! empty($leaveRequest->attachment_path);
     }

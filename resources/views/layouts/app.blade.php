@@ -17,6 +17,7 @@
   <link rel="stylesheet" href="{{ asset('css/app.css') }}">
 </head>
 <body>
+  @include('partials.splash')
   @include('partials.icons')
 
   <a class="skip" href="#page">Skip to content</a>
@@ -37,7 +38,14 @@
   <div class="overlay-root" id="modalRoot"></div>
   <div id="toasts" role="status" aria-live="polite"></div>
 
+  <script src="{{ asset('js/date-utils.js') }}"></script>
   <script src="{{ asset('js/app.js') }}"></script>
   @stack('scripts')
+
+  <script>
+    window.addEventListener('pageshow', function (e) {
+      if (e.persisted) location.reload();
+    });
+  </script>
 </body>
 </html>

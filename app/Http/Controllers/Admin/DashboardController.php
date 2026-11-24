@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\ReportFilterRequest;
+use App\Models\AuditLog;
 use App\Models\LeaveRequest;
 use App\Models\User;
 use App\Support\Report;
@@ -32,8 +33,17 @@ class DashboardController extends Controller
             ->take(5)
             ->get();
 
+        // Only the dashboard card reads this. Sign-in noise belongs on the
+        // full read-only log, not here.
+        $recentActivity = AuditLog::with('user:id,name,email')
+            ->whereNotIn('action', ['auth.login', 'auth.logout', 'auth.failed', 'auth.lockout'])
+            ->orderBy('created_at', 'desc')
+            ->orderBy('id', 'desc')
+            ->take(20)
+            ->get();
+
         return view('admin.overview', compact(
-            'employeeCount', 'allCount', 'pendingCount', 'approvedCount', 'rejectedCount', 'pending'
+            'employeeCount', 'allCount', 'pendingCount', 'approvedCount', 'rejectedCount', 'pending', 'recentActivity'
         ));
     }
 

@@ -2,6 +2,8 @@
 
 This maps the controls in this app to OWASP Top 10 (2021). Paths are relative to the project root.
 
+For the eight requirements in `Employee-Leave-Application-System.pdf`, see `docs/SECURITY_REQUIREMENTS.md`.
+
 | # | Implemented protection | OWASP category | File(s) |
 |---:|---|---|---|
 | 1 | `role:admin` and `role:employee,admin` on route groups | A01 Broken Access Control | `bootstrap/app.php`, `routes/web.php` |

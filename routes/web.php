@@ -17,7 +17,7 @@ Route::middleware('guest')->group(function () {
         return redirect()->route('login');
     });
 
-    Route::get('/login', [AuthController::class, 'showLogin'])->name('login');
+    Route::get('/login', [AuthController::class, 'showLogin'])->middleware('no-store')->name('login');
     Route::post('/login', [AuthController::class, 'login']);
 
     Route::get('/forgot-password', [AuthController::class, 'showForgotPassword'])->name('password.request');
@@ -28,7 +28,7 @@ Route::middleware('guest')->group(function () {
 });
 
 // Authenticated Routes
-Route::middleware('auth')->group(function () {
+Route::middleware(['auth', 'no-store'])->group(function () {
     Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
 
     Route::get('/password/change', [AuthController::class, 'showChangePassword'])->name('password.change');
@@ -43,6 +43,7 @@ Route::middleware('auth')->group(function () {
         Route::get('/requests/{leaveRequest}', [LeaveController::class, 'show'])->name('requests.show');
         Route::post('/requests/{leaveRequest}/cancel', [LeaveController::class, 'cancel'])->name('requests.cancel');
         Route::get('/requests/{leaveRequest}/attachment', [LeaveController::class, 'downloadAttachment'])->name('requests.attachment');
+        Route::get('/requests/{leaveRequest}/attachment/preview', [LeaveController::class, 'previewAttachment'])->name('requests.attachment.preview');
         Route::get('/my-balances', [LeaveController::class, 'balances'])->name('balances.employee');
         Route::get('/profile', [LeaveController::class, 'profile'])->name('profile');
         Route::post('/profile', [LeaveController::class, 'updateProfile'])->name('profile.update');

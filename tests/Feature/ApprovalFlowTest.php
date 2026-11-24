@@ -90,10 +90,10 @@ class ApprovalFlowTest extends TestCase
     {
         $request = $this->requestFor($this->employee);
 
-        $this->actingAs($this->employee)->get('/approvals')->assertForbidden();
-        $this->actingAs($this->employee)->get("/approvals/{$request->id}")->assertForbidden();
-        $this->actingAs($this->employee)->post("/approvals/{$request->id}/approve", ['note' => 'Yes'])->assertForbidden();
-        $this->actingAs($this->employee)->post("/approvals/{$request->id}/reject", ['note' => 'No'])->assertForbidden();
+        $this->actingAs($this->employee)->get('/approvals')->assertRedirect(route('dashboard'));
+        $this->actingAs($this->employee)->get("/approvals/{$request->id}")->assertRedirect(route('dashboard'));
+        $this->actingAs($this->employee)->post("/approvals/{$request->id}/approve", ['note' => 'Yes'])->assertRedirect(route('dashboard'));
+        $this->actingAs($this->employee)->post("/approvals/{$request->id}/reject", ['note' => 'No'])->assertRedirect(route('dashboard'));
     }
 
     public function test_admin_cannot_approve_or_reject_own_request(): void

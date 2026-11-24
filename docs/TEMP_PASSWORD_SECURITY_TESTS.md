@@ -37,7 +37,7 @@ Run the full suite:
 php artisan test
 ```
 
-Expected result: 58 tests pass.
+Expected result: 83 tests pass.
 
 The tests use an in-memory SQLite database, so they do not touch the MySQL data in `.env`.
 

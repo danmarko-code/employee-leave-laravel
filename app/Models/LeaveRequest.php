@@ -34,6 +34,7 @@ class LeaveRequest extends Model
         'decision_note',
         'attachment_path',
         'attachment_name',
+        'attachment_original_name',
     ];
 
     protected function casts(): array

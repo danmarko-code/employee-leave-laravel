@@ -53,7 +53,7 @@
         <div class="inp">
           <input class="input" type="date" id="f-end" name="end_date" min="{{ date('Y-m-d') }}" value="{{ old('end_date', date('Y-m-d', strtotime('+1 weekday'))) }}" required>
         </div>
-        <div class="ferr">@error('end_date'){{ $message }}@enderror</div>
+        <div class="ferr" id="endDateErr">@error('end_date'){{ $message }}@enderror</div>
       </div>
     </div>
 
@@ -103,22 +103,30 @@ document.addEventListener('DOMContentLoaded', () => {
   const typeSelect = document.getElementById('f-type');
   const startInput = document.getElementById('f-start');
   const endInput = document.getElementById('f-end');
+  const submitBtn = document.getElementById('submitBtn');
+  const endDateErr = document.getElementById('endDateErr');
   const docText = document.getElementById('docReqText');
   const sumDays = document.getElementById('sumDays');
   const sumBefore = document.getElementById('sumBefore');
   const sumAfter = document.getElementById('sumAfter');
   const sumBar = document.getElementById('sumBar');
+  let serverEndError = endDateErr ? endDateErr.textContent.trim() : '';
 
-  function calculateWorkingDays(startDate, endDate) {
-    if (!startDate || !endDate || startDate > endDate) return 0;
-    let count = 0;
-    let cur = new Date(startDate.getTime());
-    while (cur <= endDate) {
-      const day = cur.getDay();
-      if (day !== 0 && day !== 6) count++;
-      cur.setDate(cur.getDate() + 1);
-    }
-    return count;
+  function setNeutralSummary() {
+    sumDays.textContent = '0 working days';
+    sumBefore.textContent = '–';
+    sumAfter.textContent = '–';
+    sumBar.style.width = '0%';
+    sumBar.style.background = '';
+  }
+
+  function setDateError(message) {
+    if (endDateErr) endDateErr.textContent = message;
+  }
+
+  function clearClientDateError() {
+    serverEndError = '';
+    setDateError('');
   }
 
   function updateSummary() {
@@ -134,11 +142,22 @@ document.addEventListener('DOMContentLoaded', () => {
     const sVal = startInput.value;
     const eVal = endInput.value;
 
-    if (!sVal || !eVal) return;
-    const sDate = new Date(sVal + 'T00:00:00');
-    const eDate = new Date(eVal + 'T00:00:00');
+    if (sVal && eVal && eVal < sVal) {
+      setDateError('The end date must be on or after the start date.');
+      setNeutralSummary();
+      if (submitBtn) submitBtn.disabled = true;
+      return;
+    }
 
-    const days = calculateWorkingDays(sDate, eDate);
+    setDateError(serverEndError);
+    if (submitBtn) submitBtn.disabled = false;
+
+    if (!sVal || !eVal) {
+      setNeutralSummary();
+      return;
+    }
+
+    const days = countLocalWorkingDays(sVal, eVal);
     sumDays.textContent = days + (days === 1 ? ' working day' : ' working days');
 
     if (avail !== null) {
@@ -152,38 +171,33 @@ document.addEventListener('DOMContentLoaded', () => {
       sumBefore.textContent = '–';
       sumAfter.textContent = '–';
       sumBar.style.width = '0%';
+      sumBar.style.background = '';
     }
   }
 
   typeSelect.addEventListener('change', updateSummary);
   startInput.addEventListener('change', () => {
-    if (endInput.value < startInput.value) {
-      endInput.value = startInput.value;
-    }
+    clearClientDateError();
     updateSummary();
   });
-  endInput.addEventListener('change', updateSummary);
+  endInput.addEventListener('change', () => {
+    clearClientDateError();
+    updateSummary();
+  });
 
   // Quick pick chips
   document.querySelectorAll('.chip[data-days]').forEach(btn => {
     btn.addEventListener('click', () => {
-      const days = parseInt(btn.dataset.days);
-      const sVal = startInput.value || new Date().toISOString().split('T')[0];
-      const cur = new Date(sVal + 'T00:00:00');
-      let added = 0;
-      let target = new Date(cur.getTime());
+      const days = parseInt(btn.dataset.days, 10);
+      let sVal = startInput.value;
 
-      // Add weekdays
-      while (added < days) {
-        const d = target.getDay();
-        if (d !== 0 && d !== 6) {
-          added++;
-          if (added === days) break;
-        }
-        target.setDate(target.getDate() + 1);
+      if (!sVal) {
+        sVal = formatLocalDate(new Date());
+        startInput.value = sVal;
       }
 
-      endInput.value = target.toISOString().split('T')[0];
+      clearClientDateError();
+      endInput.value = formatLocalDate(endAfterLocal(sVal, days));
       updateSummary();
     });
   });

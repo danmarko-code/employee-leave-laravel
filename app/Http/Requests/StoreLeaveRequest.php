@@ -33,8 +33,8 @@ class StoreLeaveRequest extends FormRequest
     {
         return [
             'leave_type_id' => ['required', 'integer', 'exists:leave_types,id'],
-            'start_date' => ['required', 'date', 'after_or_equal:today'],
-            'end_date' => ['required', 'date', 'after_or_equal:start_date'],
+            'start_date' => ['required', 'date_format:Y-m-d', 'after_or_equal:today'],
+            'end_date' => ['required', 'date_format:Y-m-d', 'after_or_equal:start_date'],
             'reason' => ['required', 'string', 'min:3', 'max:1000'],
             'attachment' => ['nullable', 'file', 'mimes:pdf,jpg,jpeg,png', 'max:5120'],
         ];
