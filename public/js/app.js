@@ -288,17 +288,6 @@
       if (event.key === 'Escape') closeAttachmentPreview();
     });
 
-    // Form submit button loading spinner animation
-    const loginForm = document.getElementById('loginForm');
-    if (loginForm) {
-      loginForm.addEventListener('submit', () => {
-        const btn = document.getElementById('loginBtn');
-        if (btn && loginForm.checkValidity()) {
-          btn.classList.add('loading');
-        }
-      });
-    }
-
     // Add/Edit employee: department-driven position list.
     document.querySelectorAll('[data-user-form]').forEach((form) => {
       let config;

@@ -76,11 +76,6 @@ a{color:inherit}
 .btn.lg{height:48px;font-size:15px}
 .btn.block{width:100%}
 .btn:disabled{cursor:default}
-.btn .spin{display:none}
-.btn.loading{pointer-events:none}
-.btn.loading .btn-t{visibility:hidden}
-.btn.loading .spin{display:block;position:absolute}
-.spin{width:18px;height:18px;border-radius:50%;border:2px solid rgba(255,255,255,.4);border-top-color:#fff;animation:spin .7s linear infinite}
 /* links: the underline draws in from the left */
 .link{background:linear-gradient(currentColor,currentColor) 0 100%/0 1.5px no-repeat;border:0;padding:0 0 2px;color:var(--lagoon-700);font-weight:600;font-size:13px;cursor:pointer;transition:background-size .28s var(--ease),color .2s}
 .link:hover{background-size:100% 1.5px;color:var(--lagoon)}
@@ -471,7 +466,6 @@ table.tbl{width:100%;border-collapse:collapse;min-width:600px}
 .nav-scrim{display:none}
 
 /* ---------- Motion ---------- */
-@keyframes spin{to{transform:rotate(360deg)}}
 @keyframes fadein{from{opacity:0}to{opacity:1}}
 @keyframes up{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
 @keyframes slide-in{from{opacity:0;transform:translateX(-14px)}to{opacity:1;transform:none}}

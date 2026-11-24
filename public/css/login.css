@@ -2,11 +2,9 @@
 :root {
   --login-ease: cubic-bezier(.22, 1, .36, 1);
   --login-teal: #0f766e;
-  --login-teal-2: #0d9488;
   --login-bright: #2dd4bf;
   --login-mint: #5eead4;
   --login-dark: #12303a;
-  --login-accent: #f5b52e;
 }
 
 *, *::before, *::after { box-sizing: border-box; }
