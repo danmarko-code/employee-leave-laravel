@@ -8,7 +8,6 @@ use App\Models\AuditLog;
 use App\Models\LeaveRequest;
 use App\Models\LeaveType;
 use App\Models\User;
-use App\Support\Report;
 use App\Support\ReportQuery;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Http\Response;

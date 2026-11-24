@@ -10,7 +10,6 @@ use App\Models\User;
 use App\Support\Report;
 use App\Support\ReportQuery;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
-use Illuminate\Http\Request;
 use Illuminate\View\View;
 
 class DashboardController extends Controller
