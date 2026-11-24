@@ -6,12 +6,14 @@ use App\Http\Requests\ChangePasswordRequest;
 use App\Http\Requests\ForgotPasswordRequest;
 use App\Http\Requests\LoginRequest;
 use App\Http\Requests\ResetPasswordRequest;
+use App\Http\Middleware\EnforceRememberIdleTimeout;
 use App\Models\AuditLog;
 use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Cookie;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
@@ -66,8 +68,15 @@ class AuthController extends Controller
         if ($user && Hash::check($credentials['password'], $user->password) && $user->is_active) {
             // Success: clear limiter and regenerate session ID to prevent session fixation
             RateLimiter::clear($throttleKey);
-            Auth::login($user, $request->boolean('remember'));
+            $remember = $request->boolean('remember');
+            Auth::login($user, $remember);
             $request->session()->regenerate();
+
+            if ($remember) {
+                $timestamp = now()->timestamp;
+                $request->session()->put(EnforceRememberIdleTimeout::ACTIVITY_SESSION_KEY, $timestamp);
+                EnforceRememberIdleTimeout::queueActivity($timestamp);
+            }
 
             AuditLog::create([
                 'user_id' => $user->id,
@@ -139,6 +148,8 @@ class AuthController extends Controller
         }
 
         Auth::logout();
+        Cookie::queue(Cookie::forget(Auth::guard('web')->getRecallerName()));
+        EnforceRememberIdleTimeout::forgetActivity();
         $request->session()->invalidate();
         $request->session()->regenerateToken();
 
@@ -161,9 +172,15 @@ class AuthController extends Controller
         /** @var User $user */
         $user = Auth::user();
 
-        $user->password = Hash::make($request->input('new_password'));
-        $user->must_change_password = false;
-        $user->save();
+        $user->forceFill([
+            'password' => Hash::make($request->input('new_password')),
+            'must_change_password' => false,
+            'remember_token' => Str::random(60),
+        ])->save();
+
+        Cookie::queue(Cookie::forget(Auth::guard('web')->getRecallerName()));
+        EnforceRememberIdleTimeout::forgetActivity();
+        $request->session()->forget(EnforceRememberIdleTimeout::ACTIVITY_SESSION_KEY);
 
         AuditLog::create([
             'user_id' => $user->id,

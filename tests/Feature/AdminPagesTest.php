@@ -211,7 +211,7 @@ class AdminPagesTest extends TestCase
     {
         $adminNav = $this->actingAs($this->admin)->get('/overview')->assertOk()->getContent();
 
-        foreach (['Dashboard', 'Applications', 'Approvals', 'Employees', 'Balances', 'Reports', 'Activity', 'Settings'] as $label) {
+        foreach (['Dashboard', 'Applications', 'Approvals', 'My leave', 'Employees', 'Balances', 'Reports', 'Activity', 'Settings'] as $label) {
             $this->assertStringContainsString('<span>' . $label . '</span>', $adminNav);
         }
 
@@ -220,9 +220,9 @@ class AdminPagesTest extends TestCase
         }
 
         preg_match_all('/<svg class="ic" viewBox="0 0 24 24" aria-hidden="true">(.*?)<\/svg>/s', $adminNav, $matches);
-        $svgs = array_slice($matches[1] ?? [], 0, 8);
-        $this->assertCount(8, $svgs);
-        $this->assertCount(8, array_unique($svgs));
+        $svgs = array_slice($matches[1] ?? [], 0, 9);
+        $this->assertCount(9, $svgs);
+        $this->assertCount(9, array_unique($svgs));
 
         $employeeNav = $this->actingAs($this->employee)->get('/dashboard')->assertOk()->getContent();
 

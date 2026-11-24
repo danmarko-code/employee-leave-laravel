@@ -10,6 +10,7 @@ use App\Models\Position;
 use App\Models\User;
 use App\Policies\AdminPolicy;
 use App\Support\Report;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\ServiceProvider;
 
@@ -28,6 +29,8 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        Auth::guard('web')->setRememberDuration((int) config('auth.remember_duration', 10080));
+
         Gate::policy(User::class, AdminPolicy::class);
         Gate::policy(Department::class, AdminPolicy::class);
         Gate::policy(Position::class, AdminPolicy::class);

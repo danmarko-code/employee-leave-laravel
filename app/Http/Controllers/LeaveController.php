@@ -10,6 +10,7 @@ use App\Models\LeaveRequest;
 use App\Models\LeaveType;
 use App\Models\RequestHistory;
 use App\Models\User;
+use App\Support\AdminGuard;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -221,6 +222,10 @@ class LeaveController extends Controller
 
         $leaveRequest->load(['leaveType', 'decidedBy', 'histories.actor', 'user']);
 
+        $waitingForAdmin = $leaveRequest->status === 'pending'
+            && $leaveRequest->user->isAdmin()
+            && ! AdminGuard::hasOtherActiveAdmin($leaveRequest->user);
+
         if ($request->expectsJson() || $request->ajax()) {
             return response()->json([
                 'id' => $leaveRequest->id,
@@ -243,7 +248,7 @@ class LeaveController extends Controller
             ]);
         }
 
-        return view('employee.show', compact('leaveRequest'));
+        return view('employee.show', compact('leaveRequest', 'waitingForAdmin'));
     }
 
     /**

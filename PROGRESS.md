@@ -10,3 +10,7 @@ Step 8 done
 Revision: positions + manager autofill done
 Revision: two roles, admin-only approvals, settings tabs done
 Revision: temp password display done
+Revision: docs updated
+Revision: remember me fix done
+Revision: admin leave requests done
+Revision: data persistence fix done

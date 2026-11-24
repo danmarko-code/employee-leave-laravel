@@ -18,6 +18,13 @@
   </div>
 @endif
 
+@if ($waitingForAdmin)
+  <div class="alert info" role="alert" style="margin-bottom: 20px;">
+    <svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+    <span>Waiting for another administrator.</span>
+  </div>
+@endif
+
 <div class="card" style="max-width: 640px;">
   <dl class="dl">
     <dt>Status</dt>

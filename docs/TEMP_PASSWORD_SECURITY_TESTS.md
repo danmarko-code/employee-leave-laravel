@@ -37,13 +37,24 @@ Run the full suite:
 php artisan test
 ```
 
-Expected result: 47 tests pass.
+Expected result: 58 tests pass.
 
-The tests use `RefreshDatabase`, so they reset the local test database. If you want demo data back afterwards:
+The tests use an in-memory SQLite database, so they do not touch the MySQL data in `.env`.
+
+For first-time setup:
 
 ```bash
-php artisan migrate:fresh --seed --force
+php artisan migrate --seed
+php artisan app:create-admin
 ```
+
+For a normal restart:
+
+```bash
+php artisan serve
+```
+
+`php artisan migrate:fresh` is destructive and only for a local reset.
 
 ## Manual browser test
 
@@ -167,10 +178,13 @@ Expected result: `sessions=0` for that user after the reset.
 Check that the password was not logged:
 
 ```bash
-grep -F 'PASTE_TEMP_PASSWORD_HERE' storage/logs/laravel.log
+read -rsp 'Temporary password to search for: ' TEMP_PASSWORD
+echo
+grep -F -- "$TEMP_PASSWORD" storage/logs/laravel.log
+unset TEMP_PASSWORD
 ```
 
-Expected result: no output.
+Expected result: no output. The password is read without echo, so it does not appear in the terminal or shell history.
 
 ## Failure means stop
 

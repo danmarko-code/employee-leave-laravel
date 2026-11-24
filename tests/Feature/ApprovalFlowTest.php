@@ -104,20 +104,12 @@ class ApprovalFlowTest extends TestCase
         $balance->update(['pending_days' => 6]);
 
         $this->actingAs($this->admin)
-            ->from('/approvals')
             ->post("/approvals/{$approveRequest->id}/approve", ['note' => 'Self approved'])
-            ->assertRedirect('/approvals')
-            ->assertSessionHasErrors([
-                'request' => 'You cannot approve your own request. Ask another administrator to review it.',
-            ]);
+            ->assertForbidden();
 
         $this->actingAs($this->admin)
-            ->from('/approvals')
             ->post("/approvals/{$rejectRequest->id}/reject", ['note' => 'Self rejected'])
-            ->assertRedirect('/approvals')
-            ->assertSessionHasErrors([
-                'request' => 'You cannot reject your own request. Ask another administrator to review it.',
-            ]);
+            ->assertForbidden();
 
         $this->assertSame('pending', $approveRequest->fresh()->status);
         $this->assertSame('pending', $rejectRequest->fresh()->status);

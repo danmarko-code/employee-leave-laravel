@@ -77,22 +77,29 @@ Expected safe result: no login, no dashboard redirect, no SQL error, no table or
 ```bash
 PAYLOAD="' OR 1=1 -- "
 
-for URL in \
-  "/users?q=$PAYLOAD" \
-  "/activity?action=$PAYLOAD" \
-  "/approvals?status=$PAYLOAD" \
-  "/requests?status=$PAYLOAD" \
-  "/reports?from=2026-01-01%27%20OR%20%271%27%3D%271"; do
-  printf '%s -> ' "$URL"
-  curl -s -o /tmp/sqli-filter.out -w '%{http_code}\n' \
-    -b "$ADMIN_JAR" "$BASE$URL"
+check_filter() {
+  printf '%s?%s -> ' "$1" "$2"
+  curl -s -G -o /tmp/sqli-filter.out -w '%{http_code}\n' \
+    -b "$ADMIN_JAR" --data-urlencode "$2=$PAYLOAD" "$BASE$1"
   grep -iE 'sql|syntax|pdo|exception|column|table' /tmp/sqli-filter.out | head -3
-done
+}
+
+check_filter /users q
+check_filter /activity action
+check_filter /approvals status
+check_filter /requests status
+
+printf '/reports?from -> '
+curl -s -G -o /tmp/sqli-filter.out -w '%{http_code}\n' \
+  -b "$ADMIN_JAR" --data-urlencode "from=2026-01-01' OR '1'='1" "$BASE/reports"
+grep -iE 'sql|syntax|pdo|exception|column|table' /tmp/sqli-filter.out | head -3
 ```
 
 Expected safe result: 200, 302, or a validation error. No 500. No SQL text. No rows from other users. The `q` value is shown as plain text in `/users`.
 
 ### 1.3 sqlmap on the login form
+
+Note: run `php artisan cache:clear` before the next sqlmap run. Lockout from this run stays in the cache and will interfere with section 1.4.
 
 ```bash
 sqlmap -u "$BASE/login" \
@@ -105,6 +112,8 @@ sqlmap -u "$BASE/login" \
 Expected safe result: no injectable parameter. If it reports 419, add `--cookie="laravel-session=PASTE_ADMIN_SESSION"` and rerun. Any dump of users, hashes, or schema is a failure.
 
 ### 1.4 sqlmap on one filter endpoint
+
+Note: run `php artisan cache:clear` first if section 1.3 triggered lockout. The lockout cache will interfere with this run.
 
 ```bash
 sqlmap -u "$BASE/users?q=test" \
@@ -143,6 +152,8 @@ Expected safe result: reject returns 302. The stored note appears as `&lt;img ..
 ```bash
 EMAIL="xss-test-$(date +%s)@example.com"
 ROLE_ID=$(php artisan tinker --execute="echo App\Models\Role::where('name','employee')->value('id');")
+DEPARTMENT_ID=$(php artisan tinker --execute="echo App\Models\Department::where('name','IT')->where('is_active',1)->value('id');")
+POSITION_ID=$(php artisan tinker --execute="echo App\Models\Position::where('department_id', $DEPARTMENT_ID)->where('is_active',1)->value('id');")
 TOKEN=$(csrf "$ADMIN_JAR" /users/create)
 
 LOCATION=$(curl -s -D - -o /dev/null \
@@ -152,7 +163,8 @@ LOCATION=$(curl -s -D - -o /dev/null \
   --data-urlencode 'name=<script>alert(1)</script>' \
   --data-urlencode "email=$EMAIL" \
   --data-urlencode "role_id=$ROLE_ID" \
-  --data-urlencode 'title=Security test' \
+  --data-urlencode "department_id=$DEPARTMENT_ID" \
+  --data-urlencode "position_id=$POSITION_ID" \
   --data-urlencode 'is_active=1' \
   | awk 'tolower($1)=="location:"{print $2}' | tr -d '\r')
 
@@ -160,7 +172,7 @@ echo "$LOCATION"
 curl -s -b "$ADMIN_JAR" "$LOCATION" | grep -F '&lt;script&gt;alert(1)&lt;/script&gt;'
 ```
 
-Expected safe result: account is created. The name is shown as text. No `<script>alert(1)</script>` tag appears in the HTML. No alert runs.
+Expected safe result: the department and position are active and the position belongs to that department. The account is created. The name is shown as text. No `<script>alert(1)</script>` tag appears in the HTML. No alert runs.
 
 ### 2.3 Reflected XSS in the name search field
 
@@ -304,43 +316,46 @@ curl -s -D - -o /dev/null "$BASE/login" | grep -i '^set-cookie:'
 
 Expected safe result: session cookie has `HttpOnly` and `SameSite=Lax`. Over HTTPS in production it must also have `Secure`. Locally over plain HTTP, `Secure` may be absent because `APP_ENV=local`.
 
-### 7.2 Session fixation
+### 7.2 Session fixation replay
 
 ```bash
-curl -s -c /tmp/fix.cookies -o /dev/null "$BASE/login"
-BEFORE=$(awk '/laravel-session/{print $7}' /tmp/fix.cookies)
+rm -f /tmp/fix-old.cookies /tmp/fix-login.cookies /tmp/fix-replay.cookies
 
-TOKEN=$(login_token /tmp/fix.cookies)
-curl -s -b /tmp/fix.cookies -c /tmp/fix.cookies -o /dev/null \
-  -X POST "$BASE/login" \
-  --data-urlencode "_token=$TOKEN" \
-  --data-urlencode "email=$VICTIM" \
-  --data-urlencode 'password=your-password'
+curl -s -c /tmp/fix-old.cookies -o /dev/null "$BASE/login"
+cp /tmp/fix-old.cookies /tmp/fix-replay.cookies
 
-AFTER=$(awk '/laravel-session/{print $7}' /tmp/fix.cookies)
+login /tmp/fix-login.cookies "$VICTIM" 'your-password'
+
+BEFORE=$(awk '/laravel-session/{print $7}' /tmp/fix-replay.cookies)
+AFTER=$(awk '/laravel-session/{print $7}' /tmp/fix-login.cookies)
 
 echo "before=$BEFORE"
 echo "after=$AFTER"
 [ "$BEFORE" != "$AFTER" ] && echo 'OK: session id changed' || echo 'FAIL: same session id'
+
+printf 'pre-login cookie on dashboard: '
+curl -s -o /dev/null -w '%{http_code} -> %{redirect_url}\n' \
+  -b /tmp/fix-replay.cookies "$BASE/dashboard"
 ```
 
-Expected safe result: the session id changes after login.
+Expected safe result: the login session id differs from the pre-login id. Replaying the saved pre-login cookie on `/dashboard` redirects to `/login`.
 
 ### 7.3 Logout invalidation
 
 ```bash
+cp "$ADMIN_JAR" /tmp/old.cookies
 TOKEN=$(csrf "$ADMIN_JAR" /dashboard)
 
 curl -s -o /dev/null -w 'logout: %{http_code}\n' \
   -b "$ADMIN_JAR" -c "$ADMIN_JAR" \
   -X POST "$BASE/logout" --data-urlencode "_token=$TOKEN"
 
-printf 'old session on dashboard: '
+printf 'replayed old session on dashboard: '
 curl -s -o /dev/null -w '%{http_code} -> %{redirect_url}\n' \
-  -b "$ADMIN_JAR" "$BASE/dashboard"
+  -b /tmp/old.cookies "$BASE/dashboard"
 ```
 
-Expected safe result: logout returns 302 to `/login`. The old cookie no longer opens `/dashboard`; it redirects to `/login`.
+Expected safe result: logout returns 302 to `/login`. The copied old cookie no longer opens `/dashboard`; it redirects to `/login`.
 
 ---
 

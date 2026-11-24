@@ -82,6 +82,8 @@ php artisan app:create-admin
 
 `migrate --seed` creates roles and leave types. It does not create employees. The create-admin command asks for name, email, and password.
 
+This is for first-time setup only. For a normal restart, run `php artisan serve`; data stays in MySQL. `php artisan migrate:fresh` is destructive and only for a local reset.
+
 ## 5. Front-end assets
 
 ```bash

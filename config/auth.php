@@ -46,6 +46,19 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Remember Cookie Lifetime
+    |--------------------------------------------------------------------------
+    |
+    | Number of minutes the "remember me" cookie stays valid. Keep this short.
+    | Idle sessions are still cut off by SESSION_LIFETIME even when a user is
+    | remembered.
+    |
+    */
+
+    'remember_duration' => (int) env('REMEMBER_DURATION', 10080),
+
+    /*
+    |--------------------------------------------------------------------------
     | User Providers
     |--------------------------------------------------------------------------
     |

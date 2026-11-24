@@ -4,6 +4,7 @@ namespace App\Policies;
 
 use App\Models\LeaveRequest;
 use App\Models\User;
+use App\Support\AdminGuard;
 
 class LeaveRequestPolicy
 {
@@ -49,6 +50,10 @@ class LeaveRequestPolicy
     private function canDecide(User $user, LeaveRequest $leaveRequest, ?string $target): bool
     {
         if (! $user->isAdmin() || (int) $user->id === (int) $leaveRequest->user_id) {
+            return false;
+        }
+
+        if ($leaveRequest->user?->isAdmin() && ! AdminGuard::hasOtherActiveAdmin($leaveRequest->user)) {
             return false;
         }
 

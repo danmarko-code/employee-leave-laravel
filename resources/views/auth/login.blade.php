@@ -70,7 +70,7 @@
         </div>
 
         <label class="check">
-          <input type="checkbox" name="remember" id="remember" {{ old('remember') ? 'checked' : '' }}>
+          <input type="checkbox" name="remember" id="remember" value="1" {{ old('remember') ? 'checked' : '' }}>
           <span>Keep me signed in on this device</span>
         </label>
 

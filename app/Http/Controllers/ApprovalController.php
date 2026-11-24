@@ -118,6 +118,10 @@ class ApprovalController extends Controller
             // Lock the request row so a second click cannot decide it again.
             $locked = LeaveRequest::query()->whereKey($leaveRequest->id)->lockForUpdate()->firstOrFail();
 
+            if ((int) $user->id === (int) $locked->user_id) {
+                abort(403);
+            }
+
             if (! $locked->canTransitionTo($status)) {
                 throw ValidationException::withMessages([
                     'note' => 'This request has already been decided.',
@@ -125,9 +129,7 @@ class ApprovalController extends Controller
             }
 
             if (! Gate::forUser($user)->allows($status === 'approved' ? 'approve' : 'reject', $locked)) {
-                throw ValidationException::withMessages([
-                    'note' => 'You cannot decide this request.',
-                ]);
+                abort(403);
             }
 
             $year = (int) $locked->start_date->format('Y');

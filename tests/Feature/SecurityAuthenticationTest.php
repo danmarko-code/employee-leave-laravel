@@ -2,10 +2,12 @@
 
 namespace Tests\Feature;
 
+use App\Http\Middleware\EnforceRememberIdleTimeout;
 use App\Models\AuditLog;
 use App\Models\Role;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\RateLimiter;
@@ -109,6 +111,7 @@ class SecurityAuthenticationTest extends TestCase
             'password' => Hash::make('ValidPass123!@#'),
             'role_id' => $role->id,
             'is_active' => true,
+            'remember_token' => 'old-logout-token',
         ]);
 
         $this->actingAs($user);
@@ -118,6 +121,7 @@ class SecurityAuthenticationTest extends TestCase
         $response->assertRedirect('/login');
 
         $this->assertGuest();
+        $this->assertNotSame('old-logout-token', $user->fresh()->remember_token);
         $this->assertDatabaseHas('audit_logs', [
             'user_id' => $user->id,
             'action' => 'auth.logout',
@@ -134,6 +138,7 @@ class SecurityAuthenticationTest extends TestCase
             'role_id' => $role->id,
             'must_change_password' => true,
             'is_active' => true,
+            'remember_token' => 'old-password-token',
         ]);
 
         $this->actingAs($user);
@@ -169,6 +174,7 @@ class SecurityAuthenticationTest extends TestCase
         // Verify user flag updated and audit log recorded
         $user->refresh();
         $this->assertFalse($user->must_change_password);
+        $this->assertNotSame('old-password-token', $user->remember_token);
         $this->assertTrue(Hash::check('BrandNewStrongPass2026!#', $user->password));
 
         $this->assertDatabaseHas('audit_logs', [
@@ -178,5 +184,132 @@ class SecurityAuthenticationTest extends TestCase
 
         // Dashboard accessible now
         $this->get('/dashboard')->assertOk();
+    }
+
+    public function test_login_with_checkbox_remember_value_succeeds(): void
+    {
+        $user = $this->createEmployee('remember-one@example.com');
+
+        $response = $this->post('/login', [
+            'email' => $user->email,
+            'password' => 'ValidPass123!@#',
+            'remember' => '1',
+        ]);
+
+        $response->assertRedirect('/dashboard');
+        $this->assertAuthenticatedAs($user);
+
+        $recallerName = Auth::guard('web')->getRecallerName();
+        $recaller = $this->cookieFrom($response, $recallerName);
+        $activity = $this->cookieFrom($response, EnforceRememberIdleTimeout::ACTIVITY_COOKIE);
+
+        $this->assertNotNull($recaller);
+        $this->assertTrue($recaller->isHttpOnly());
+        $this->assertSame('lax', $recaller->getSameSite());
+        $this->assertGreaterThan(now()->timestamp, $recaller->getExpiresTime());
+        $this->assertLessThanOrEqual(now()->addDays(7)->timestamp, $recaller->getExpiresTime());
+        $this->assertNotNull($activity);
+    }
+
+    public function test_login_without_remember_succeeds_without_remember_cookie(): void
+    {
+        $user = $this->createEmployee('remember-two@example.com');
+
+        $response = $this->post('/login', [
+            'email' => $user->email,
+            'password' => 'ValidPass123!@#',
+        ]);
+
+        $response->assertRedirect('/dashboard');
+        $response->assertCookieMissing(Auth::guard('web')->getRecallerName());
+        $this->assertAuthenticatedAs($user);
+    }
+
+    public function test_login_rejects_invalid_remember_value(): void
+    {
+        $user = $this->createEmployee('remember-invalid@example.com');
+
+        $response = $this->from('/login')->post('/login', [
+            'email' => $user->email,
+            'password' => 'ValidPass123!@#',
+            'remember' => 'garbage',
+        ]);
+
+        $response->assertRedirect('/login');
+        $response->assertSessionHasErrors('remember');
+        $this->assertGuest();
+    }
+
+    public function test_remembered_login_requires_sign_in_after_idle_timeout(): void
+    {
+        $user = $this->createEmployee('remember-idle@example.com');
+
+        $login = $this->post('/login', [
+            'email' => $user->email,
+            'password' => 'ValidPass123!@#',
+            'remember' => '1',
+        ]);
+
+        $recaller = $this->cookieFrom($login, Auth::guard('web')->getRecallerName());
+        $activity = $this->cookieFrom($login, EnforceRememberIdleTimeout::ACTIVITY_COOKIE);
+        $oldToken = $user->fresh()->remember_token;
+
+        $this->assertNotNull($recaller);
+        $this->assertNotNull($activity);
+
+        $this->flushSession();
+        $this->travel(121)->minutes();
+
+        $response = $this->withCookies([
+            $recaller->getName() => $recaller->getValue(),
+            $activity->getName() => $activity->getValue(),
+        ])->get('/dashboard');
+
+        $response->assertRedirect('/login');
+        $response->assertCookieExpired($recaller->getName());
+        $this->assertGuest();
+        $this->assertNotSame($oldToken, $user->fresh()->remember_token);
+    }
+
+    public function test_logout_rotates_remember_token_and_kills_remember_cookie(): void
+    {
+        $user = $this->createEmployee('remember-logout@example.com');
+
+        $login = $this->post('/login', [
+            'email' => $user->email,
+            'password' => 'ValidPass123!@#',
+            'remember' => '1',
+        ]);
+
+        $recaller = $this->cookieFrom($login, Auth::guard('web')->getRecallerName());
+        $oldToken = $user->fresh()->remember_token;
+
+        $this->assertNotNull($recaller);
+
+        $response = $this->withCookies([
+            $recaller->getName() => $recaller->getValue(),
+        ])->post('/logout');
+
+        $response->assertRedirect('/login');
+        $response->assertCookieExpired($recaller->getName());
+        $this->assertGuest();
+        $this->assertNotSame($oldToken, $user->fresh()->remember_token);
+    }
+
+    private function createEmployee(string $email): User
+    {
+        return User::create([
+            'name' => 'Remember User',
+            'email' => $email,
+            'password' => Hash::make('ValidPass123!@#'),
+            'role_id' => Role::where('name', 'employee')->value('id'),
+            'is_active' => true,
+        ]);
+    }
+
+    private function cookieFrom($response, string $name): ?object
+    {
+        return collect($response->headers->getCookies())
+            ->first(fn ($cookie) => $cookie->getName() === $name);
     }
 }

@@ -20,4 +20,12 @@ class AdminGuard
     {
         return $user->isAdmin() && $user->is_active && self::activeAdminCount() <= 1;
     }
+
+    public static function hasOtherActiveAdmin(User $user): bool
+    {
+        return User::where('id', '!=', $user->id)
+            ->where('is_active', true)
+            ->whereHas('roleRelation', fn ($query) => $query->where('name', 'admin'))
+            ->exists();
+    }
 }

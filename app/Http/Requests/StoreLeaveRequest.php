@@ -5,6 +5,7 @@ namespace App\Http\Requests;
 use App\Models\LeaveBalance;
 use App\Models\LeaveRequest;
 use App\Models\LeaveType;
+use App\Support\AdminGuard;
 use Carbon\Carbon;
 use Carbon\CarbonPeriod;
 use Illuminate\Foundation\Http\FormRequest;
@@ -50,6 +51,12 @@ class StoreLeaveRequest extends FormRequest
             }
 
             $user = Auth::user();
+
+            if ($user->isAdmin() && ! AdminGuard::hasOtherActiveAdmin($user)) {
+                $v->errors()->add('leave_type_id', 'No other administrator is available to review this request. Ask to have a second administrator added.');
+                return;
+            }
+
             $start = Carbon::parse($this->input('start_date'));
             $end = Carbon::parse($this->input('end_date'));
             $leaveType = LeaveType::find($this->input('leave_type_id'));

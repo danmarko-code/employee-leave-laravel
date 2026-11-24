@@ -4,7 +4,6 @@ namespace App\Http\Requests;
 
 use App\Models\LeaveRequest;
 use Illuminate\Foundation\Http\FormRequest;
-use Illuminate\Validation\ValidationException;
 
 class RejectLeaveRequest extends FormRequest
 {
@@ -18,12 +17,6 @@ class RejectLeaveRequest extends FormRequest
 
         if (! $user || ! $leaveRequest instanceof LeaveRequest) {
             return false;
-        }
-
-        if ((int) $user->id === (int) $leaveRequest->user_id) {
-            throw ValidationException::withMessages([
-                'request' => 'You cannot reject your own request. Ask another administrator to review it.',
-            ]);
         }
 
         return $user->can('reject', $leaveRequest);
