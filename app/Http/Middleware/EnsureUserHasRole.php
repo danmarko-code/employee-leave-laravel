@@ -12,7 +12,7 @@ class EnsureUserHasRole
     /**
      * Handle an incoming request.
      *
-     * @param  \Closure(\Illuminate\Http\Request): (\Symfony\Component\HttpFoundation\Response)  $next
+     * @param  Closure(Request): (Response)  $next
      */
     public function handle(Request $request, Closure $next, string ...$roles): Response
     {
@@ -23,7 +23,7 @@ class EnsureUserHasRole
         $userRole = Auth::user()->role;
 
         if (! in_array($userRole, $roles, true)) {
-            return redirect()->route(Auth::user()->dashboardRoute());
+            abort(403);
         }
 
         return $next($request);

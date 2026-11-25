@@ -11,10 +11,15 @@ use App\Models\Position;
 use App\Models\Role;
 use App\Models\User;
 use Carbon\Carbon;
+use Database\Seeders\DepartmentSeeder;
+use Database\Seeders\LeaveTypeSeeder;
+use Database\Seeders\PositionSeeder;
+use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Testing\TestResponse;
 use Tests\TestCase;
 
 class AdminPagesTest extends TestCase
@@ -22,23 +27,31 @@ class AdminPagesTest extends TestCase
     use RefreshDatabase;
 
     protected User $admin;
+
     protected User $employee;
+
     protected Role $adminRole;
+
     protected Role $employeeRole;
+
     protected LeaveType $annual;
+
     protected Department $department;
+
     protected Department $marketing;
+
     protected Position $position;
+
     protected Position $marketingPosition;
 
     protected function setUp(): void
     {
         parent::setUp();
 
-        $this->seed(\Database\Seeders\RoleSeeder::class);
-        $this->seed(\Database\Seeders\DepartmentSeeder::class);
-        $this->seed(\Database\Seeders\PositionSeeder::class);
-        $this->seed(\Database\Seeders\LeaveTypeSeeder::class);
+        $this->seed(RoleSeeder::class);
+        $this->seed(DepartmentSeeder::class);
+        $this->seed(PositionSeeder::class);
+        $this->seed(LeaveTypeSeeder::class);
 
         $this->adminRole = Role::where('name', 'admin')->firstOrFail();
         $this->employeeRole = Role::where('name', 'employee')->firstOrFail();
@@ -101,8 +114,8 @@ class AdminPagesTest extends TestCase
             'is_active' => true,
         ]);
 
-        $this->seed(\Database\Seeders\RoleSeeder::class);
-        $this->seed(\Database\Seeders\RoleSeeder::class);
+        $this->seed(RoleSeeder::class);
+        $this->seed(RoleSeeder::class);
 
         $this->assertSame(2, Role::count());
         $this->assertSame($this->employeeRole->id, $user->fresh()->role_id);
@@ -136,9 +149,9 @@ class AdminPagesTest extends TestCase
         ]);
 
         $urls = [
-            '/overview', '/applications', '/users', '/users/create',
-            '/users/' . $this->employee->id, '/users/' . $this->employee->id . '/edit',
-            '/approvals', '/balances', '/balances/' . $balance->id . '/edit',
+            '/dashboard', '/overview', '/applications', '/users', '/users/create',
+            '/users/'.$this->employee->id, '/users/'.$this->employee->id.'/edit',
+            '/approvals', '/balances', '/balances/'.$balance->id.'/edit',
             '/reports', '/activity',
             '/settings/departments', '/settings/positions', '/settings/leave-types',
         ];
@@ -154,8 +167,8 @@ class AdminPagesTest extends TestCase
     {
         $content = $this->actingAs($this->admin)->get('/users/create')->assertOk()->getContent();
 
-        $this->assertStringContainsString('>' . $this->employeeRole->display_name . '</option>', $content);
-        $this->assertStringContainsString('>' . $this->adminRole->display_name . '</option>', $content);
+        $this->assertStringContainsString('>'.$this->employeeRole->display_name.'</option>', $content);
+        $this->assertStringContainsString('>'.$this->adminRole->display_name.'</option>', $content);
         $this->assertStringNotContainsString('Approver', $content);
         $this->assertStringNotContainsString('>Manager</option>', $content);
         $this->assertStringNotContainsString('manager_id', $content);
@@ -167,7 +180,7 @@ class AdminPagesTest extends TestCase
     public function test_edit_form_keeps_dependent_positions_without_manager_fields(): void
     {
         $content = $this->actingAs($this->admin)
-            ->get('/users/' . $this->employee->id . '/edit')
+            ->get('/users/'.$this->employee->id.'/edit')
             ->assertOk()
             ->assertViewHas('formConfig', function (array $config): bool {
                 $support = $config['departments'][(string) $this->department->id] ?? [];
@@ -209,48 +222,61 @@ class AdminPagesTest extends TestCase
 
     public function test_sidebar_is_role_specific_with_unique_icons(): void
     {
-        $adminNav = $this->actingAs($this->admin)->get('/overview')->assertOk()->getContent();
+        $adminNav = $this->actingAs($this->admin)->get('/dashboard')->assertOk()->getContent();
+        preg_match('/<nav class="nav".*?<\/nav>/s', $adminNav, $adminMatches);
+        $adminSidebar = $adminMatches[0] ?? '';
 
-        foreach (['Dashboard', 'Applications', 'Approvals', 'Employees', 'Balances', 'Reports', 'My leave', 'Settings'] as $label) {
-            $this->assertStringContainsString('<span>' . $label . '</span>', $adminNav);
+        foreach (['Dashboard', 'Employees', 'Reports', 'My leave', 'Settings'] as $label) {
+            $this->assertStringContainsString('<span>'.$label.'</span>', $adminSidebar);
         }
 
-        foreach (['<span>Activity</span>', 'Organization', 'Leave types', '<span>Roles</span>'] as $label) {
-            $this->assertStringNotContainsString($label, $adminNav);
+        foreach (['Applications', 'Approvals', 'Balances', 'Activity', 'Organization', 'Leave types', 'Roles'] as $label) {
+            $this->assertStringNotContainsString('<span>'.$label.'</span>', $adminSidebar);
         }
 
-        preg_match_all('/<svg class="ic" viewBox="0 0 24 24" aria-hidden="true">(.*?)<\/svg>/s', $adminNav, $matches);
-        $svgs = array_slice($matches[1] ?? [], 0, 8);
-        $this->assertCount(8, $svgs);
-        $this->assertCount(8, array_unique($svgs));
+        $this->assertStringContainsString('<a class="nav-item active" href="'.route('dashboard').'"', $adminSidebar);
+
+        preg_match_all('/<svg class="ic" viewBox="0 0 24 24" aria-hidden="true">(.*?)<\/svg>/s', $adminSidebar, $matches);
+        $svgs = $matches[1] ?? [];
+        $this->assertCount(5, $svgs);
+        $this->assertCount(5, array_unique($svgs));
 
         $employeeNav = $this->actingAs($this->employee)->get('/dashboard')->assertOk()->getContent();
+        preg_match('/<nav class="nav".*?<\/nav>/s', $employeeNav, $employeeMatches);
+        $employeeSidebar = $employeeMatches[0] ?? '';
 
         foreach (['Dashboard', 'My requests', 'Balances', 'Profile'] as $label) {
-            $this->assertStringContainsString('<span>' . $label . '</span>', $employeeNav);
+            $this->assertStringContainsString('<span>'.$label.'</span>', $employeeSidebar);
         }
 
-        $this->assertStringNotContainsString('<span>Applications</span>', $employeeNav);
-        $this->assertStringNotContainsString('<span>Settings</span>', $employeeNav);
+        foreach (['Applications', 'Approvals', 'Reports', 'Settings'] as $label) {
+            $this->assertStringNotContainsString('<span>'.$label.'</span>', $employeeSidebar);
+        }
+
+        preg_match_all('/<svg class="ic" viewBox="0 0 24 24" aria-hidden="true">(.*?)<\/svg>/s', $employeeSidebar, $employeeIcons);
+        $this->assertCount(4, $employeeIcons[1] ?? []);
+        $this->assertCount(4, array_unique($employeeIcons[1] ?? []));
     }
 
     public function test_employee_balances_page_marks_balances_nav_as_active(): void
     {
         $html = $this->actingAs($this->employee)->get(route('balances.employee'))->assertOk()->getContent();
 
-        $this->assertStringContainsString('<a class="nav-item active" href="' . route('balances.employee') . '"', $html);
-        $this->assertStringNotContainsString('<a class="nav-item active" href="' . route('requests') . '"', $html);
+        $this->assertStringContainsString('<a class="nav-item active" href="'.route('balances.employee').'"', $html);
+        $this->assertStringNotContainsString('<a class="nav-item active" href="'.route('requests').'"', $html);
     }
 
     public function test_non_admin_cannot_open_admin_urls(): void
     {
-        foreach (['/overview', '/applications', '/users', '/users/create', '/approvals', '/settings', '/settings/departments', '/settings/positions', '/settings/leave-types', '/balances', '/reports', '/activity'] as $url) {
-            $this->actingAs($this->employee)->get($url)->assertRedirect(route('dashboard'));
+        $this->actingAs($this->employee)->get('/overview')->assertForbidden();
+
+        foreach (['/applications', '/users', '/users/create', '/approvals', '/settings', '/settings/departments', '/settings/positions', '/settings/leave-types', '/balances', '/reports', '/activity'] as $url) {
+            $this->actingAs($this->employee)->get($url)->assertForbidden();
         }
 
-        $this->actingAs($this->employee)->post('/users', [])->assertRedirect(route('dashboard'));
-        $this->actingAs($this->employee)->post('/settings/departments', [])->assertRedirect(route('dashboard'));
-        $this->actingAs($this->employee)->get('/reports/export')->assertRedirect(route('dashboard'));
+        $this->actingAs($this->employee)->post('/users', [])->assertForbidden();
+        $this->actingAs($this->employee)->post('/settings/departments', [])->assertForbidden();
+        $this->actingAs($this->employee)->get('/reports/export')->assertForbidden();
     }
 
     public function test_admin_creates_user_with_one_time_password_and_forced_change(): void
@@ -266,7 +292,7 @@ class AdminPagesTest extends TestCase
         ]);
 
         $user = User::where('email', 'new.hire@company.test')->firstOrFail();
-        $response->assertRedirect('/users/' . $user->id);
+        $response->assertRedirect('/users/'.$user->id);
         $this->assertNoStoreHeaders($response);
         $this->assertDatabaseHas('audit_logs', [
             'action' => 'user.created',
@@ -473,7 +499,7 @@ class AdminPagesTest extends TestCase
 
         $this->actingAs($this->employee)
             ->post(route('admin.users.temporary-password.reset', $this->admin))
-            ->assertRedirect(route('dashboard'));
+            ->assertForbidden();
 
         $this->actingAs($this->admin)
             ->get(route('admin.users.temporary-password.reset', $this->employee))
@@ -502,7 +528,7 @@ class AdminPagesTest extends TestCase
         $this->assertStringContainsString('beforeunload', $script);
     }
 
-    private function assertNoStoreHeaders(\Illuminate\Testing\TestResponse $response): void
+    private function assertNoStoreHeaders(TestResponse $response): void
     {
         $cacheControl = (string) $response->headers->get('Cache-Control');
 

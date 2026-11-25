@@ -37,7 +37,7 @@
   </form>
 </div>
 
-<div class="stats" style="margin-bottom:22px;">
+<div class="stats report-stats" style="margin-bottom:22px;">
   <div class="card stat"><div class="n">{{ $counts['all'] }}</div><div class="l">Applications</div></div>
   <div class="card stat"><div class="n">{{ $counts['approved'] }}</div><div class="l">Approved</div></div>
   <div class="card stat"><div class="n">{{ $counts['pending'] }}</div><div class="l">Pending</div></div>

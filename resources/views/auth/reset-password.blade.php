@@ -7,7 +7,7 @@
   <meta name="theme-color" content="#ffffff">
   <title>Set new password | Leave system</title>
 
-  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'%3E%3Crect width='40' height='40' rx='11' fill='%230B5F70'/%3E%3Crect x='10' y='11' width='20' height='19' rx='4' fill='none' stroke='white' stroke-width='2.4'/%3E%3Cpath d='M10 17h20M16 8.5v5M24 8.5v5' stroke='white' stroke-width='2.4' stroke-linecap='round'/%3E%3Cpath d='m16 24 3 3 6-6' fill='none' stroke='%23F6B93B' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+  <link rel="icon" href="{{ asset('assets/auth/cvsu-favicon.png') }}">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -21,7 +21,7 @@
     <div class="auth-card {{ $errors->any() ? 'shake' : '' }}">
       <div class="auth-brand">
         <div class="wordmark">
-          <svg class="logo" viewBox="0 0 40 40" aria-hidden="true"><use href="#logo-mark"/></svg>
+          <img class="logo" src="{{ asset('assets/auth/cvsu-favicon.png') }}" alt="" aria-hidden="true">
           <b>Leave system</b>
         </div>
       </div>
@@ -30,7 +30,7 @@
       <p class="sub">Minimum 12 characters with upper, lower, number, and symbol.</p>
 
       @if ($errors->any())
-        <div class="alert info" id="loginAlert" role="alert" style="background:var(--bad-bg);color:var(--bad);border:1px solid rgba(179,52,46,.25);">
+        <div class="alert info" id="loginAlert" role="alert" style="background:var(--bad-bg);color:var(--bad);border:1px solid rgba(179,38,30,.25);">
           <svg class="ic" viewBox="0 0 24 24" aria-hidden="true" style="color:var(--bad)"><circle cx="12" cy="12" r="9"/><path d="M12 8v5M12 16h.01"/></svg>
           <span>{{ $errors->first() }}</span>
         </div>
@@ -44,7 +44,7 @@
           <label for="email">Work email</label>
           <div class="inp">
             <svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/></svg>
-            <input class="input" id="email" name="email" type="email" value="{{ old('email', $email) }}" required readonly style="background:#F2F6F8;">
+            <input class="input" id="email" name="email" type="email" value="{{ old('email', $email) }}" required readonly style="background:#eef4ef;">
           </div>
           <div class="ferr" id="emailErr">@error('email'){{ $message }}@enderror</div>
         </div>

@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Controllers\Admin\DashboardController as AdminDashboardController;
 use App\Http\Requests\StoreLeaveRequest;
 use App\Http\Requests\UpdateProfileRequest;
 use App\Models\AuditLog;
@@ -12,6 +13,7 @@ use App\Models\RequestHistory;
 use App\Models\User;
 use App\Support\AdminGuard;
 use App\Support\AttachmentFile;
+use App\Support\PendingApprovalCount;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -50,12 +52,18 @@ class LeaveController extends Controller
     }
 
     /**
-     * Employee Dashboard (balances, next time off, recent requests).
+     * Dashboard entry point. Employees keep the leave dashboard; administrators
+     * see the grouped admin overview because their Dashboard tab links here.
      */
-    public function dashboard(): View
+    public function dashboard(AdminDashboardController $adminDashboard, PendingApprovalCount $pendingApprovals): View
     {
         /** @var User $user */
         $user = Auth::user();
+
+        if ($user->isAdmin()) {
+            return $adminDashboard->overview($pendingApprovals);
+        }
+
         $currentYear = (int) date('Y');
         $this->ensureBalances($user, $currentYear);
 
@@ -116,6 +124,7 @@ class LeaveController extends Controller
                 ->where('year', $currentYear)
                 ->first();
             $type->available_days = $bal ? $bal->available_days : $type->days_allowed;
+
             return $type;
         });
 
@@ -142,7 +151,7 @@ class LeaveController extends Controller
             $attachmentName = AttachmentFile::sanitizeOriginalName($file->getClientOriginalName());
             $attachmentOriginalName = $attachmentName;
             $ext = $file->getClientOriginalExtension();
-            $storedName = Str::random(40) . ($ext ? '.' . $ext : '');
+            $storedName = Str::random(40).($ext ? '.'.$ext : '');
             $attachmentPath = $file->storeAs('attachments', $storedName, 'local');
         }
 
@@ -365,6 +374,7 @@ class LeaveController extends Controller
     public function profile(): View
     {
         $user = Auth::user()->load(['department', 'position', 'roleRelation']);
+
         return view('employee.profile', compact('user'));
     }
 

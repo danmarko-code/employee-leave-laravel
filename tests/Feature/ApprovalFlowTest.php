@@ -11,6 +11,8 @@ use App\Models\RequestHistory;
 use App\Models\Role;
 use App\Models\User;
 use Carbon\Carbon;
+use Database\Seeders\LeaveTypeSeeder;
+use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
 use Tests\TestCase;
@@ -20,19 +22,25 @@ class ApprovalFlowTest extends TestCase
     use RefreshDatabase;
 
     protected User $admin;
+
     protected User $employee;
+
     protected User $otherDepartmentEmployee;
+
     protected Department $team;
+
     protected LeaveType $annual;
+
     protected Role $adminRole;
+
     protected Role $employeeRole;
 
     protected function setUp(): void
     {
         parent::setUp();
 
-        $this->seed(\Database\Seeders\RoleSeeder::class);
-        $this->seed(\Database\Seeders\LeaveTypeSeeder::class);
+        $this->seed(RoleSeeder::class);
+        $this->seed(LeaveTypeSeeder::class);
 
         $this->team = Department::create(['name' => 'Support', 'code' => 'SUP']);
         $otherTeam = Department::create(['name' => 'Finance', 'code' => 'FIN']);
@@ -51,7 +59,7 @@ class ApprovalFlowTest extends TestCase
     {
         return User::create([
             'name' => $name,
-            'email' => strtolower(str_replace(' ', '.', $name)) . '@company.test',
+            'email' => strtolower(str_replace(' ', '.', $name)).'@company.test',
             'password' => Hash::make('StrongPass123!@#'),
             'role_id' => $role->id,
             'department_id' => $department->id,
@@ -90,10 +98,10 @@ class ApprovalFlowTest extends TestCase
     {
         $request = $this->requestFor($this->employee);
 
-        $this->actingAs($this->employee)->get('/approvals')->assertRedirect(route('dashboard'));
-        $this->actingAs($this->employee)->get("/approvals/{$request->id}")->assertRedirect(route('dashboard'));
-        $this->actingAs($this->employee)->post("/approvals/{$request->id}/approve", ['note' => 'Yes'])->assertRedirect(route('dashboard'));
-        $this->actingAs($this->employee)->post("/approvals/{$request->id}/reject", ['note' => 'No'])->assertRedirect(route('dashboard'));
+        $this->actingAs($this->employee)->get('/approvals')->assertForbidden();
+        $this->actingAs($this->employee)->get("/approvals/{$request->id}")->assertForbidden();
+        $this->actingAs($this->employee)->post("/approvals/{$request->id}/approve", ['note' => 'Yes'])->assertForbidden();
+        $this->actingAs($this->employee)->post("/approvals/{$request->id}/reject", ['note' => 'No'])->assertForbidden();
     }
 
     public function test_admin_cannot_approve_or_reject_own_request(): void
@@ -221,7 +229,7 @@ class ApprovalFlowTest extends TestCase
     public function test_page_size_is_hard_capped(): void
     {
         for ($i = 0; $i < 30; $i++) {
-            $this->requestFor($this->employee, 'Team event ' . $i);
+            $this->requestFor($this->employee, 'Team event '.$i);
         }
 
         $this->actingAs($this->admin)

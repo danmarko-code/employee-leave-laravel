@@ -3,6 +3,8 @@
 @section('title', 'Activity | Leave system')
 
 @section('content')
+@include('partials.admin-tabs', ['set' => 'dashboard'])
+
 <div class="ph">
   <div><h1>Activity</h1><p>Recent actions recorded by the system. This log is read-only.</p></div>
 </div>

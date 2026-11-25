@@ -3,6 +3,8 @@
 @section('title', 'Leave balances | Leave system')
 
 @section('content')
+@include('partials.admin-tabs', ['set' => 'employees'])
+
 <div class="ph">
   <div><h1>Leave balances</h1><p>Adjust yearly entitlement without touching used or pending days.</p></div>
 </div>

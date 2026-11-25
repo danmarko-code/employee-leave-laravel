@@ -1,5 +1,10 @@
 <?php
 
+use App\Http\Middleware\EnforceRememberIdleTimeout;
+use App\Http\Middleware\EnsureAdminOverviewAccess;
+use App\Http\Middleware\EnsurePasswordIsChanged;
+use App\Http\Middleware\EnsureUserHasRole;
+use App\Http\Middleware\PreventBackHistory;
 use Illuminate\Auth\Middleware\RedirectIfAuthenticated;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
@@ -13,11 +18,12 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
-        $middleware->appendToGroup('web', \App\Http\Middleware\EnforceRememberIdleTimeout::class);
-        $middleware->appendToGroup('web', \App\Http\Middleware\EnsurePasswordIsChanged::class);
+        $middleware->appendToGroup('web', EnforceRememberIdleTimeout::class);
+        $middleware->appendToGroup('web', EnsurePasswordIsChanged::class);
         $middleware->alias([
-            'role' => \App\Http\Middleware\EnsureUserHasRole::class,
-            'no-store' => \App\Http\Middleware\PreventBackHistory::class,
+            'role' => EnsureUserHasRole::class,
+            'admin-overview' => EnsureAdminOverviewAccess::class,
+            'no-store' => PreventBackHistory::class,
         ]);
 
         RedirectIfAuthenticated::redirectUsing(function (Request $request): string {

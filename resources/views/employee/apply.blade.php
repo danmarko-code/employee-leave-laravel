@@ -11,7 +11,7 @@
 </div>
 
 @if ($errors->any())
-  <div class="alert info" role="alert" style="background:var(--bad-bg);color:var(--bad);border:1px solid rgba(179,52,46,.25);margin-bottom:20px;">
+  <div class="alert info" role="alert" style="background:var(--bad-bg);color:var(--bad);border:1px solid rgba(179,38,30,.25);margin-bottom:20px;">
     <svg class="ic" viewBox="0 0 24 24" aria-hidden="true" style="color:var(--bad)"><circle cx="12" cy="12" r="9"/><path d="M12 8v5M12 16h.01"/></svg>
     <span>{{ $errors->first() }}</span>
   </div>

@@ -3,6 +3,8 @@
 @section('title', 'Overview | Leave system')
 
 @section('content')
+@include('partials.admin-tabs', ['set' => 'dashboard'])
+
 <div class="dashboard">
   <div class="ph">
     <div>
@@ -23,14 +25,14 @@
   <div class="dashboard-panels">
     <section class="review-panel" aria-labelledby="review-heading">
       <div class="sh">
-        <h2 id="review-heading">Waiting for review</h2>
+        <h2 id="review-heading">Needs review</h2>
         <a class="link" href="{{ route('approvals.index') }}">View all approvals</a>
       </div>
 
       <div class="tbl-wrap">
         <table class="tbl">
           <thead>
-            <tr><th>Employee</th><th>Leave type</th><th>Dates</th><th class="num">Days</th><th>Status</th></tr>
+            <tr><th>Employee</th><th>Leave type</th><th>Dates</th><th class="num">Days</th><th>Status</th><th><span class="muted">Review</span></th></tr>
           </thead>
           <tbody>
             @forelse ($pending as $req)
@@ -40,46 +42,77 @@
                 <td>{{ $req->start_date->format('M d, Y') }} – {{ $req->end_date->format('M d, Y') }}</td>
                 <td class="num">{{ $req->days }}</td>
                 <td><span class="pill pending"><i></i>Pending</span></td>
+                <td><a class="link" href="{{ route('approvals.show', $req) }}">Open</a></td>
               </tr>
             @empty
-              <tr><td colspan="5"><div class="empty"><h3>You are all caught up</h3><p>New applications will show up here.</p></div></td></tr>
+              <tr><td colspan="6"><div class="empty"><h3>You are all caught up</h3><p>New applications will show up here.</p></div></td></tr>
             @endforelse
           </tbody>
         </table>
-      </div>
-    </section>
-
-    <section class="card activity-card" aria-labelledby="activity-heading">
-      <div class="sh activity-head">
-        <h2 id="activity-heading">Recent activity</h2>
-      </div>
-
-      <div class="activity-scroll" role="region" aria-label="Recent activity" tabindex="0">
-        <table class="tbl activity-tbl">
-          <thead>
-            <tr><th>When</th><th>Actor</th><th>Activity</th></tr>
-          </thead>
-          <tbody>
-            @forelse ($recentActivity as $log)
-              <tr class="act-row">
-                <td class="act-when" title="{{ $log->created_at->format('M d, Y g:ia') }}">{{ $log->created_at->diffForHumans() }}</td>
-                <td class="act-actor">{{ $log->user->name ?? 'System' }}</td>
-                <td class="act-event">
-                  <span class="tag">{{ $log->label() }}</span>
-                  <span class="act-detail" title="{{ $log->summary() }}">{{ $log->summary() }}</span>
-                </td>
-              </tr>
-            @empty
-              <tr><td colspan="3"><div class="empty">No activity yet.</div></td></tr>
-            @endforelse
-          </tbody>
-        </table>
-      </div>
-
-      <div class="act-foot">
-        <a class="link" href="{{ route('activity') }}">View all activity</a>
       </div>
     </section>
   </div>
+
+  <section class="dashboard-context" aria-label="Leave balances and upcoming leave">
+    <div class="bal-grid">
+      @php $lastRingIndex = count($balanceRings) - 1; @endphp
+      @forelse ($balanceRings as $ringIndex => $ring)
+        @php
+          $ariaLabel = $ring['name'].': '.(int) $ring['available'].' days left of '.(int) $ring['allocated'].' allocated, '.(int) $ring['pending'].' pending, '.(int) $ring['used'].' used';
+        @endphp
+        @include('partials.balance-ring', [
+          'name' => $ring['name'],
+          'allocated' => $ring['allocated'],
+          'avail' => $ring['available'],
+          'pending' => $ring['pending'],
+          'used' => $ring['used'],
+          'allocatedLabel' => 'days allocated this year',
+          'href' => route('admin.balances.index', ['leave_type_id' => $ring['id']]),
+          'ariaLabel' => $ariaLabel,
+          'stretched' => $ringIndex === $lastRingIndex,
+        ])
+      @empty
+        <article class="card bal empty-bal">
+          <div class="bal-body">
+            <h3>No balances for this year yet</h3>
+            <a class="link" href="{{ route('admin.balances.index') }}">View balances</a>
+          </div>
+        </article>
+      @endforelse
+
+      <article class="card next who-next">
+        <h3>Who's out next</h3>
+        <div class="who-next-list" role="region" aria-label="Who's out next" tabindex="0">
+          @forelse ($upcomingLeave as $out)
+            <div class="next-row">
+              <div class="datebox">
+                <b>{{ $out->start_date->format('j') }}</b>
+                <span>{{ $out->start_date->format('M') }}</span>
+              </div>
+              <div class="who-detail">
+                <div class="next-t">{{ $out->user->name }}</div>
+                <div class="muted">{{ $out->leaveType->name }}</div>
+                <div class="muted">
+                  {{ $out->start_date->format('M d, Y') }}
+                  @if ($out->start_date->ne($out->end_date))
+                    – {{ $out->end_date->format('M d, Y') }}
+                  @endif
+                </div>
+                <div class="next-foot">
+                  @if ($out->start_date->toDateString() <= now()->toDateString() && $out->end_date->toDateString() >= now()->toDateString())
+                    <span class="pill approved"><i></i>On leave now</span>
+                  @endif
+                  <span class="muted">{{ $out->days }} {{ Str::plural('working day', $out->days) }}</span>
+                </div>
+              </div>
+            </div>
+          @empty
+            <p class="muted">Nobody is on leave soon.</p>
+          @endforelse
+        </div>
+      </article>
+    </div>
+  </section>
+
 </div>
 @endsection

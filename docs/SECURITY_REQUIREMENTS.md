@@ -26,7 +26,7 @@ cd ./leave-system
 php artisan test
 ```
 
-Expected result: 83 tests pass with 583 assertions.
+Expected result: all tests pass.
 
 The test config in `phpunit.xml` uses SQLite in memory. The CLI must have `pdo_sqlite` enabled. Check it with:
 
@@ -42,19 +42,19 @@ Smaller groups for the PDF requirements:
 php artisan test --filter='(argon2id|one_time_password|temporary_password|forced_password_change|copy_and_dismiss)'
 ```
 
-Expected: 7 tests pass with 76 assertions. Covers requirements 1 and 8.
+Expected: all matched tests pass. Covers requirements 1 and 8.
 
 ```bash
 php artisan test --filter='(non_admin_cannot_open_admin_urls|employee_cannot_open_approval_pages|employee_sees_only_own_requests|idor_protection|logout_kills_session|logout_rotates_remember_token|remembered_login_requires_sign_in_after_idle_timeout|wrong_password_6_times|same_generic_error)'
 ```
 
-Expected: 10 tests pass with 70 assertions. Covers requirements 2, 3, 4, and 8.
+Expected: all matched tests pass. Covers requirements 2, 3, 4, and 8.
 
 ```bash
 php artisan test --filter='(audit_log_viewer|balance_update_is_audited|leave_type_changes_keep_audit_logs|employee_can_apply_for_leave|mismatched_position|invalid_add_reopens_panel|only_fixed_roles|page_size_is_hard_capped|positions_filter_rejects)'
 ```
 
-Expected: 9 tests pass with 38 assertions. Covers requirements 6 and 7.
+Expected: all matched tests pass. Covers requirements 6 and 7.
 
 ## How to run the manual checks
 

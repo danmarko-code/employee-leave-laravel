@@ -22,51 +22,14 @@
 @endif
 
 <div class="bal-grid">
-  @php
-    $ringR = 42;
-    $ringC = 2 * pi() * $ringR;
-  @endphp
-
   @foreach ($balances as $bal)
-    @php
-      $total = max((float) $bal->allocated_days, 1);
-      $avail = max((float) $bal->available_days, 0);
-      $pending = (float) $bal->pending_days;
-      $used = (float) $bal->used_days;
-
-      $lenAvail = ($ringC * $avail) / $total;
-      $lenPending = ($ringC * $pending) / $total;
-      $lenUsed = ($ringC * $used) / $total;
-    @endphp
-    <article class="card bal">
-      <div class="ring-wrap">
-        <svg class="ring" viewBox="0 0 100 100" aria-hidden="true">
-          <circle class="track" cx="50" cy="50" r="{{ $ringR }}" stroke-dasharray="{{ $ringC }}"></circle>
-          @if ($avail > 0)
-            <circle class="arc" cx="50" cy="50" r="{{ $ringR }}" stroke="var(--lagoon)" data-len="{{ round($lenAvail, 2) }}" stroke-dasharray="{{ round($lenAvail, 2) }} {{ round($ringC - $lenAvail + 0.5, 2) }}" stroke-dashoffset="0"></circle>
-          @endif
-          @if ($pending > 0)
-            <circle class="arc" cx="50" cy="50" r="{{ $ringR }}" stroke="var(--sun)" data-len="{{ round($lenPending, 2) }}" stroke-dasharray="{{ round($lenPending, 2) }} {{ round($ringC - $lenPending + 0.5, 2) }}" stroke-dashoffset="{{ round(-$lenAvail, 2) }}"></circle>
-          @endif
-          @if ($used > 0)
-            <circle class="arc" cx="50" cy="50" r="{{ $ringR }}" stroke="#B9C6CE" data-len="{{ round($lenUsed, 2) }}" stroke-dasharray="{{ round($lenUsed, 2) }} {{ round($ringC - $lenUsed + 0.5, 2) }}" stroke-dashoffset="{{ round(-($lenAvail + $lenPending), 2) }}"></circle>
-          @endif
-        </svg>
-        <div class="ring-c">
-          <strong data-count="{{ (int)$avail }}">{{ (int)$avail }}</strong>
-          <span>days left</span>
-        </div>
-      </div>
-      <div class="bal-body">
-        <h3>{{ $bal->leaveType->name }}</h3>
-        <div class="of">{{ (int)$bal->allocated_days }} days this year</div>
-        <div class="legend">
-          <div><i style="background:var(--lagoon)"></i>Available<b>{{ (int)$avail }}</b></div>
-          <div><i style="background:var(--sun)"></i>Pending<b>{{ (int)$pending }}</b></div>
-          <div><i style="background:#B9C6CE"></i>Used<b>{{ (int)$used }}</b></div>
-        </div>
-      </div>
-    </article>
+    @include('partials.balance-ring', [
+      'name' => $bal->leaveType->name,
+      'allocated' => $bal->allocated_days,
+      'avail' => $bal->available_days,
+      'pending' => $bal->pending_days,
+      'used' => $bal->used_days,
+    ])
   @endforeach
 
   @if ($nextLeave)

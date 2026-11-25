@@ -53,7 +53,14 @@ EXIT;
 cd /path/to/leave-system
 composer install
 cp .env.example .env
+
 php artisan key:generate
+```
+
+For a production install, install only the runtime packages and optimize the autoloader:
+
+```bash
+composer install --no-dev --optimize-autoloader
 ```
 
 Edit `.env`:

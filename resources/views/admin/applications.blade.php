@@ -3,6 +3,8 @@
 @section('title', 'Applications | Leave system')
 
 @section('content')
+@include('partials.admin-tabs', ['set' => 'dashboard'])
+
 <div class="ph">
   <div>
     <h1>Leave applications</h1>

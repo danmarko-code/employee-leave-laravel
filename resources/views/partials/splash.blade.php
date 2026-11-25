@@ -6,7 +6,7 @@
       z-index: 9999;
       display: grid;
       place-items: center;
-      background: linear-gradient(135deg, #12303a, #0f766e);
+      background: linear-gradient(135deg, #052e0b, #0a4a12);
       color: #fff;
       font-family: "IBM Plex Sans", "Segoe UI", system-ui, -apple-system, Arial, sans-serif;
       opacity: 1;
@@ -78,7 +78,7 @@
       width: 0;
       height: 100%;
       border-radius: inherit;
-      background: linear-gradient(90deg, #2dd4bf, #5eead4);
+      background: linear-gradient(90deg, #018002, #e0cb74);
     }
 
     @media (prefers-reduced-motion: no-preference) {
@@ -116,10 +116,10 @@
   <div class="app-splash" id="appSplash" role="status" aria-live="polite">
     <div class="app-splash__inner">
       <div class="app-splash__mark">
-        <img class="app-splash__logo" src="{{ asset('assets/auth/logo.svg') }}" alt="" aria-hidden="true" width="88" height="88">
+        <img class="app-splash__logo" src="{{ asset('assets/auth/cvsu-logo.webp') }}" alt="" aria-hidden="true" width="88" height="77">
         <svg class="app-splash__ring" viewBox="0 0 100 100" fill="none" aria-hidden="true">
           <circle cx="50" cy="50" r="46" stroke="#fff" stroke-opacity=".12" stroke-width="2"></circle>
-          <circle class="ring" cx="50" cy="50" r="46" stroke="#5eead4" stroke-width="2.5" stroke-linecap="round" pathLength="1" transform="rotate(-90 50 50)"></circle>
+          <circle class="ring" cx="50" cy="50" r="46" stroke="#e0cb74" stroke-width="2.5" stroke-linecap="round" pathLength="1" transform="rotate(-90 50 50)"></circle>
         </svg>
       </div>
       <div class="app-splash__title">Leave system</div>

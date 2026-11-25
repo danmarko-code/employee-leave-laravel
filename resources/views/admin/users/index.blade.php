@@ -3,6 +3,8 @@
 @section('title', 'Employees | Leave system')
 
 @section('content')
+@include('partials.admin-tabs', ['set' => 'employees'])
+
 <div class="ph">
   <div>
     <h1>Employees</h1>

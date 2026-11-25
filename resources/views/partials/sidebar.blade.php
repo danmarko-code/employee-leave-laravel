@@ -1,17 +1,22 @@
 @php
   $user = Auth::user();
   $role = $user->role ?? 'employee';
+  $pendingApprovals = $pendingApprovals ?? 0;
 
-  // The full activity log stays reachable from the dashboard, so on that
-  // page the Dashboard item remains the highlighted one.
   $isActivityPage = request()->routeIs('activity') || request()->is('activity');
 
+  // Grouped admin pages still highlight the Dashboard item. Request detail
+  // pages reached from the queue also belong to this group.
+  $isDashboardGroup = $isActivityPage
+    || request()->is('overview') || request()->routeIs('overview')
+    || request()->is('dashboard')
+    || request()->is('approvals*') || request()->routeIs('approvals.*')
+    || request()->is('applications*') || request()->routeIs('admin.applications')
+    || ($role === 'admin' && request()->routeIs('requests.show'));
+
   $navItems = $role === 'admin' ? [
-    ['route' => 'overview', 'url' => '/overview', 'label' => 'Dashboard', 'icon' => 'grid'],
-    ['route' => 'admin.applications', 'url' => '/applications', 'label' => 'Applications', 'icon' => 'inbox'],
-    ['route' => 'approvals.index', 'url' => '/approvals', 'label' => 'Approvals', 'icon' => 'check'],
+    ['route' => 'dashboard', 'url' => '/dashboard', 'label' => 'Dashboard', 'icon' => 'grid'],
     ['route' => 'users', 'url' => '/users', 'label' => 'Employees', 'icon' => 'users'],
-    ['route' => 'admin.balances.index', 'url' => '/balances', 'label' => 'Balances', 'icon' => 'wallet'],
     ['route' => 'reports', 'url' => '/reports', 'label' => 'Reports', 'icon' => 'file'],
     ['route' => 'requests', 'url' => '/requests', 'label' => 'My leave', 'icon' => 'my-leave'],
     ['route' => 'settings.departments', 'url' => '/settings', 'label' => 'Settings', 'icon' => 'settings'],
@@ -37,7 +42,7 @@
 
 <aside class="side" id="side">
   <div class="wordmark">
-    <svg class="logo" viewBox="0 0 40 40" aria-hidden="true"><use href="#logo-mark"/></svg>
+    <img class="logo" src="{{ asset('assets/auth/cvsu-favicon.png') }}" alt="" aria-hidden="true">
     <b>Leave system</b>
   </div>
 
@@ -45,20 +50,27 @@
     <span class="nav-ind" id="navInd"></span>
     @foreach ($navItems as $item)
       @php
-        $isActive = $item['route'] === 'settings.departments'
-          ? request()->is('settings*') || request()->routeIs('settings.*')
-          : ($item['route'] === 'requests'
-            ? request()->routeIs('requests*', 'apply*')
-            : ($item['route'] === 'overview'
-              ? request()->is('overview') || request()->routeIs('overview') || $isActivityPage
-              : (request()->is(trim($item['url'], '/')) || request()->routeIs($item['route']))));
+        $isActive = match ($item['route']) {
+          'settings.departments' => request()->is('settings*') || request()->routeIs('settings.*'),
+          'requests' => $role === 'admin'
+            ? (request()->is('requests') || request()->routeIs('apply*'))
+            : (request()->routeIs('requests*', 'apply*')),
+          'dashboard' => $role === 'admin' ? $isDashboardGroup : request()->is('dashboard') || request()->routeIs('dashboard'),
+          'users' => request()->is('users*') || request()->is('balances*')
+            || request()->routeIs('users', 'admin.users.*', 'admin.balances.*'),
+          'reports' => request()->is('reports*') || request()->routeIs('reports', 'admin.reports.*'),
+          default => request()->is(trim($item['url'], '/')) || request()->routeIs($item['route']),
+        };
         $itemUrl = Route::has($item['route']) ? route($item['route']) : url($item['url']);
       @endphp
       <a class="nav-item {{ $isActive ? 'active' : '' }}" href="{{ $itemUrl }}" data-view="{{ $item['route'] }}" {!! $isActive ? 'aria-current="page"' : '' !!}>
         <svg class="ic" viewBox="0 0 24 24" aria-hidden="true">{!! $icons[$item['icon']] ?? '' !!}</svg>
         <span>{{ $item['label'] }}</span>
-        @if ($item['route'] === 'approvals.index' && $role === 'admin')
-          <span class="badge" id="qBadge" hidden></span>
+        @if ($item['route'] === 'dashboard' && $role === 'admin')
+          <span class="badge" id="qBadge" {!! $pendingApprovals === 0 ? 'hidden' : '' !!}>
+            <span class="sr-only">{{ $pendingApprovals }} pending {{ $pendingApprovals === 1 ? 'approval' : 'approvals' }}</span>
+            <span aria-hidden="true">{{ $pendingApprovals }}</span>
+          </span>
         @endif
       </a>
     @endforeach
@@ -75,7 +87,7 @@
       </form>
     </div>
     <button type="button" class="ubtn" data-act="umenu" aria-haspopup="menu" aria-expanded="false">
-      <span class="av" style="background: {{ $user->color ?? '#10405A' }}" aria-hidden="true">
+      <span class="av" style="background: {{ $user->color ?? '#0a4a12' }}" aria-hidden="true">
         {{ strtoupper(substr($user->name ?? 'User', 0, 2)) }}
       </span>
       <span class="meta">

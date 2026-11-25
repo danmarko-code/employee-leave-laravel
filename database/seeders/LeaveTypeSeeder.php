@@ -20,7 +20,7 @@ class LeaveTypeSeeder extends Seeder
                 'is_paid' => true,
                 'requires_doc' => false,
                 'is_active' => true,
-                'color' => '#0F8B8D',
+                'color' => '#018002',
             ],
             [
                 'name' => 'Sick Leave',

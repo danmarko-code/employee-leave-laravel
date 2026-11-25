@@ -21,7 +21,7 @@
   <!-- Profile Information & Phone -->
   <div class="card">
     <div class="dr-who">
-      <span class="av lg" style="background: {{ $user->color ?: '#10405A' }};" aria-hidden="true">
+      <span class="av lg" style="background: {{ $user->color ?: '#0a4a12' }};" aria-hidden="true">
         {{ strtoupper(substr($user->name, 0, 2)) }}
       </span>
       <div>

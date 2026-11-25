@@ -57,9 +57,13 @@ Route::middleware(['auth', 'no-store'])->group(function () {
         Route::post('/approvals/{leaveRequest}/reject', [ApprovalController::class, 'reject'])->name('approvals.reject');
     });
 
+    // The Overview is admin-only; employees get a 403 instead of a redirect.
+    Route::get('/overview', [DashboardController::class, 'overview'])
+        ->middleware('admin-overview')
+        ->name('overview');
+
     // Admin management pages: role middleware on every action.
     Route::middleware('role:admin')->group(function () {
-        Route::get('/overview', [DashboardController::class, 'overview'])->name('overview');
         Route::get('/applications', [DashboardController::class, 'applications'])->name('admin.applications');
 
         Route::get('/users', [UserController::class, 'index'])->name('users');

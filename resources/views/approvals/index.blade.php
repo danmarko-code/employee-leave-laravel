@@ -3,10 +3,12 @@
 @section('title', 'Approvals | Leave system')
 
 @section('content')
+@include('partials.admin-tabs', ['set' => 'dashboard'])
+
 <div class="ph">
   <div>
     <h1>Approvals</h1>
-    <p>Leave applications from your team and department waiting for review.</p>
+    <p>Leave applications from other employees waiting for review.</p>
   </div>
 </div>
 

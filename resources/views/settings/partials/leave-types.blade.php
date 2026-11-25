@@ -20,7 +20,7 @@
       </div>
       <div class="field">
         <label for="add-type-color">Colour</label>
-        <input class="input" id="add-type-color" name="color" value="{{ old('color', '#0F8B8D') }}" maxlength="20">
+        <input class="input" id="add-type-color" name="color" value="{{ old('color', '#018002') }}" maxlength="20">
         @error('color') <div class="ferr">{{ $message }}</div> @enderror
       </div>
       <label class="check"><input type="hidden" name="is_paid" value="0"><input type="checkbox" name="is_paid" value="1" {{ old('is_paid', '1') == '1' ? 'checked' : '' }}><span>Paid leave</span></label>

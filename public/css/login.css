@@ -1,10 +1,19 @@
-/* Sign-in page only. Self-contained so other pages keep their theme. */
+/* Cavite State University sign-in. Self-contained; other pages keep their theme. */
 :root {
-  --login-ease: cubic-bezier(.22, 1, .36, 1);
-  --login-teal: #0f766e;
-  --login-bright: #2dd4bf;
-  --login-mint: #5eead4;
-  --login-dark: #12303a;
+  --cv-dark: #052e0b;
+  --cv-deep: #0a4a12;
+  --cv-green: #018002;
+  --cv-green-hover: #016602;
+  --cv-mint: #01ff81;
+  --cv-gold: #e0cb74;
+  --cv-gold-strong: #b8962a;
+  --cv-ink: #13241a;
+  --cv-muted: #5a6b60;
+  --cv-line: #d9e2da;
+  --cv-page: #f3f6f2;
+  --cv-danger: #b3261e;
+  --cv-danger-bg: #fdeceb;
+  --cv-ease: cubic-bezier(.22, 1, .36, 1);
 }
 
 *, *::before, *::after { box-sizing: border-box; }
@@ -14,260 +23,354 @@ html, body { margin: 0; min-height: 100%; }
 body.login-body {
   min-height: 100vh;
   min-height: 100dvh;
-  font-family: "IBM Plex Sans", "Segoe UI", system-ui, -apple-system, Arial, sans-serif;
-  color: #fff;
-  background: var(--login-dark);
+  color: var(--cv-ink);
+  background: var(--cv-page);
+  font-family: "Segoe UI", system-ui, -apple-system, "Helvetica Neue", Arial, sans-serif;
   -webkit-font-smoothing: antialiased;
 }
 
-.login-page {
-  position: relative;
+.cv-login {
   display: grid;
-  place-items: center;
+  grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
   min-height: 100vh;
   min-height: 100dvh;
-  padding: 32px 16px;
-  overflow: hidden;
 }
 
-.login-bg {
-  position: fixed;
-  inset: 0;
-  z-index: 0;
-  background: var(--login-dark) url("../assets/auth/login-bg.svg") center / cover no-repeat;
-  transform: scale(1);
-  transform-origin: center;
-  will-change: transform;
-}
-
-.login-card {
+/* Brand side: the seal is the one memorable element. */
+.cv-brand {
   position: relative;
-  z-index: 1;
-  width: 92%;
-  max-width: 400px;
-  padding: 36px 32px 32px;
-  border-radius: 24px;
-  border: 1px solid rgba(255, 255, 255, .18);
-  background: rgba(15, 60, 66, .38);
-  -webkit-backdrop-filter: blur(18px) saturate(140%);
-  backdrop-filter: blur(18px) saturate(140%);
-  box-shadow: 0 24px 70px -24px rgba(18, 48, 58, .7);
+  isolation: isolate;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 48px clamp(24px, 5vw, 64px);
+  color: #fff;
   text-align: center;
+  background: linear-gradient(155deg, var(--cv-deep) 0%, var(--cv-dark) 78%);
 }
 
-.login-logo {
+.cv-brand::before {
+  content: "";
+  position: absolute;
+  inset: -20%;
+  z-index: -1;
+  background: url("../assets/auth/cvsu-pattern.svg") center / 72px repeat;
+  opacity: .07;
+}
+
+.cv-brand::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 4px;
+  background: var(--cv-gold);
+}
+
+.cv-seal {
+  width: min(220px, 52%);
+  height: auto;
+  filter: drop-shadow(0 10px 24px rgba(0, 0, 0, .35));
+}
+
+.cv-kicker {
+  margin: 10px 0 0;
+  color: var(--cv-gold);
+  font-size: .78rem;
+  letter-spacing: .16em;
+  text-transform: uppercase;
+}
+
+.cv-brand-text { display: grid; gap: 4px; }
+
+.cv-uni {
+  margin: 0;
+  font: 700 clamp(1.6rem, 2.6vw, 2.2rem)/1.15 Georgia, "Times New Roman", serif;
+}
+
+.cv-sys {
+  margin: 0;
+  color: rgba(255, 255, 255, .82);
+  font-size: 1rem;
+}
+
+.cv-rule {
   display: block;
   width: 56px;
-  height: 56px;
-  margin: 0 auto;
+  height: 3px;
+  margin: 8px 0;
+  border-radius: 2px;
+  background: var(--cv-gold);
 }
 
-.login-title {
-  margin: 18px 0 6px;
-  font-size: 36px;
+.cv-since {
+  margin: 0;
+  color: rgba(255, 255, 255, .7);
+  font-size: .8rem;
+  letter-spacing: .08em;
+}
+
+/* Form side: quiet, readable, and strictly task-focused. */
+.cv-panel {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 24px;
+}
+
+.cv-card {
+  width: 100%;
+  max-width: 420px;
+  padding: 36px 32px;
+  border: 1px solid var(--cv-line);
+  border-radius: 14px;
+  background: #fff;
+  box-shadow: 0 1px 2px rgba(5, 46, 11, .06), 0 12px 32px rgba(5, 46, 11, .08);
+}
+
+.cv-app-logo {
+  display: block;
+  width: 72px;
+  height: auto;
+  margin: 0 0 18px;
+}
+
+.cv-title {
+  margin: 0;
+  font-size: 1.65rem;
   font-weight: 600;
-  line-height: 1.1;
-  letter-spacing: -.03em;
-  background: linear-gradient(90deg, #fff, var(--login-mint));
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
+  line-height: 1.2;
+  letter-spacing: -.01em;
 }
 
-.login-subtitle {
-  margin: 0 0 26px;
-  color: rgba(255, 255, 255, .72);
-  font-size: 14px;
+.cv-title::after {
+  content: "";
+  display: block;
+  width: 40px;
+  height: 3px;
+  margin-top: 10px;
+  border-radius: 2px;
+  background: var(--cv-gold-strong);
+}
+
+.cv-sub {
+  margin: 12px 0 22px;
+  color: var(--cv-muted);
+  font-size: .94rem;
   line-height: 1.5;
 }
 
-.login-notice,
-.login-error {
+.cv-notice,
+.cv-alert {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 10px;
   margin-bottom: 18px;
-  padding: 10px 12px;
-  border-radius: 12px;
-  font-size: 13px;
+  padding: 12px 14px;
+  border-radius: 8px;
+  font-size: .92rem;
   line-height: 1.4;
   text-align: left;
 }
 
-.login-notice {
-  border: 1px solid rgba(255, 255, 255, .16);
-  background: rgba(255, 255, 255, .08);
-  color: var(--login-mint);
+.cv-notice {
+  border: 1px solid #b7ddbd;
+  background: #edf8ee;
+  color: var(--cv-green-hover);
 }
 
-.login-error {
-  border: 1px solid rgba(252, 165, 165, .35);
-  background: rgba(18, 48, 58, .35);
-  color: #fca5a5;
+.cv-alert {
+  border: 1px solid #f0c4c1;
+  background: var(--cv-danger-bg);
+  color: var(--cv-danger);
 }
 
-.login-notice img,
-.login-error img {
-  width: 16px;
-  height: 16px;
-  flex: none;
-}
+.cv-notice img,
+.cv-alert img { flex: none; margin-top: 1px; }
 
-.login-form { text-align: left; }
+.cv-form { text-align: left; }
 
-.login-field + .login-field { margin-top: 18px; }
+.cv-field + .cv-field { margin-top: 16px; }
 
-.login-field label {
+.cv-label {
   display: block;
-  margin-bottom: 8px;
-  color: rgba(255, 255, 255, .85);
-  font-size: 13px;
-  font-weight: 500;
+  margin-bottom: 6px;
+  color: var(--cv-ink);
+  font-size: .88rem;
+  font-weight: 600;
 }
 
-.login-input-wrap {
-  position: relative;
+.cv-label-row {
   display: flex;
-  align-items: center;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
 }
 
-.login-input-icon {
-  position: absolute;
-  left: 14px;
-  width: 20px;
-  height: 20px;
-  pointer-events: none;
-}
+.cv-input { position: relative; }
 
-.login-input {
+.cv-control {
   width: 100%;
-  height: 48px;
-  padding: 0 46px;
-  border: 1px solid rgba(255, 255, 255, .2);
-  border-radius: 14px;
-  outline: none;
-  background: rgba(255, 255, 255, .08);
-  color: #fff;
+  height: 46px;
+  padding: 0 44px 0 42px;
+  border: 1px solid #b9c7bc;
+  border-radius: 8px;
+  background: #fff;
+  color: var(--cv-ink);
   font: inherit;
   font-size: 14px;
 }
 
-.login-input::placeholder { color: rgba(255, 255, 255, .48); }
+.cv-control::placeholder { color: #7c8b81; }
 
-.login-input:focus {
-  border-color: var(--login-bright);
-  box-shadow: 0 0 0 4px rgba(45, 212, 191, .18);
+.cv-control:focus,
+.cv-control:focus-visible {
+  outline: none;
+  border-color: var(--cv-green);
+  box-shadow: 0 0 0 3px rgba(1, 128, 2, .18);
 }
 
-.login-field.is-invalid .login-input { border-color: #fca5a5; }
+.cv-field.is-invalid .cv-control,
+.cv-control[aria-invalid="true"] { border-color: var(--cv-danger); }
 
-.login-eye {
+.cv-ico {
   position: absolute;
-  right: 8px;
+  z-index: 1;
+  left: 13px;
+  top: 50%;
+  width: 18px;
+  height: 18px;
+  pointer-events: none;
+  transform: translateY(-50%);
+}
+
+.cv-toggle {
+  position: absolute;
+  z-index: 1;
+  right: 5px;
   top: 50%;
   display: grid;
   place-items: center;
-  width: 34px;
-  height: 34px;
+  width: 36px;
+  height: 36px;
   padding: 0;
   border: 0;
-  border-radius: 10px;
-  background: transparent;
+  border-radius: 6px;
+  background: none;
   cursor: pointer;
   transform: translateY(-50%);
 }
 
-.login-eye img {
-  width: 20px;
-  height: 20px;
+.cv-toggle:hover { background: #eef3ee; }
+
+.cv-toggle img {
+  width: 18px;
+  height: 18px;
   pointer-events: none;
 }
 
-.login-field-error {
+.cv-field-error {
   margin-top: 6px;
-  color: #fca5a5;
+  color: var(--cv-danger);
   font-size: 12.5px;
 }
 
-.login-options {
+.cv-check {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  margin: 18px 0 22px;
-}
-
-.login-check {
-  position: relative;
-  display: inline-flex;
-  align-items: center;
-  gap: 10px;
-  color: rgba(255, 255, 255, .85);
-  font-size: 13px;
+  gap: 8px;
+  margin: 4px 0 20px;
+  color: var(--cv-muted);
+  font-size: .9rem;
   cursor: pointer;
   user-select: none;
 }
 
-.login-check input {
+.cv-check input {
   position: absolute;
   width: 1px;
   height: 1px;
   opacity: 0;
 }
 
-.login-check-box {
+.cv-check-box {
   display: grid;
   place-items: center;
   width: 18px;
   height: 18px;
   flex: none;
-  border: 1px solid rgba(255, 255, 255, .35);
+  border: 1px solid #aab9ae;
   border-radius: 5px;
-  background: rgba(255, 255, 255, .08);
+  background: #fff;
 }
 
-.login-check-box img {
-  width: 12px;
-  height: 12px;
-  opacity: 0;
+.cv-check-box img { opacity: 0; }
+
+.cv-check input:checked + .cv-check-box {
+  border-color: var(--cv-green);
+  background: #edf8ee;
 }
 
-.login-check input:checked + .login-check-box {
-  border-color: var(--login-mint);
-  background: var(--login-teal);
-}
+.cv-check input:checked + .cv-check-box img { opacity: 1; }
 
-.login-check input:checked + .login-check-box img { opacity: 1; }
-
-.login-forgot {
-  color: var(--login-mint);
-  font-size: 13px;
-  font-weight: 500;
-  text-decoration: none;
-}
-
-.login-submit {
+.cv-btn {
   position: relative;
   display: grid;
   place-items: center;
   width: 100%;
-  height: 48px;
+  height: 46px;
   border: 0;
-  border-radius: 999px;
-  background: #fff;
-  color: #0b3b3a;
-  font: 600 15px/1 "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
+  border-radius: 8px;
+  background: var(--cv-green);
+  color: #fff;
+  font: 600 15px/1 "Segoe UI", system-ui, -apple-system, Arial, sans-serif;
   cursor: pointer;
 }
 
-.login-submit:disabled { cursor: wait; }
+.cv-btn:hover { background: var(--cv-green-hover); }
+.cv-btn:active { transform: translateY(1px); }
+.cv-btn:disabled { opacity: .7; cursor: wait; }
 
+.cv-link {
+  color: var(--cv-green-hover);
+  font-size: .85rem;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.cv-link:hover { text-decoration: underline; }
+
+.cv-link:focus-visible,
+.cv-toggle:focus-visible,
+.cv-btn:focus-visible {
+  outline: 2px solid var(--cv-green);
+  outline-offset: 3px;
+}
+
+.cv-check input:focus-visible + .cv-check-box {
+  outline: 2px solid var(--cv-green);
+  outline-offset: 2px;
+}
+
+.cv-foot {
+  margin: 20px 0 0;
+  color: var(--cv-muted);
+  font-size: .8rem;
+  text-align: center;
+}
+
+/* Loading state is driven by login.js on a valid submit. */
 .login-spinner {
   position: absolute;
   width: 18px;
   height: 18px;
-  border: 2px solid rgba(11, 59, 58, .25);
-  border-top-color: var(--login-teal);
+  border: 2px solid rgba(255, 255, 255, .35);
+  border-top-color: var(--cv-gold);
   border-radius: 50%;
   opacity: 0;
 }
@@ -275,104 +378,133 @@ body.login-body {
 .login-submit.is-loading .login-btn-label { opacity: 0; }
 .login-submit.is-loading .login-spinner { opacity: 1; }
 
-.login-forgot:focus-visible,
-.login-eye:focus-visible,
-.login-submit:focus-visible {
-  outline: 2px solid var(--login-bright);
-  outline-offset: 3px;
-}
-
-.login-check input:focus-visible + .login-check-box {
-  outline: 2px solid var(--login-bright);
-  outline-offset: 2px;
-}
-
-@keyframes login-bg-zoom {
-  from { transform: scale(1); }
-  to { transform: scale(1.06); }
-}
-
-@keyframes login-card-in {
-  from { opacity: 0; transform: translateY(18px); }
+@keyframes cv-in {
+  from { opacity: 0; transform: translateY(8px); }
   to { opacity: 1; transform: none; }
 }
 
-@keyframes login-child-in {
+@keyframes cv-child-in {
   from { opacity: 0; transform: translateY(10px); }
   to { opacity: 1; transform: none; }
 }
 
-@keyframes login-shake {
+@keyframes cv-shake {
   0%, 100% { transform: none; }
-  20% { transform: translateX(-7px); }
-  40% { transform: translateX(6px); }
-  60% { transform: translateX(-4px); }
-  80% { transform: translateX(2px); }
+  20% { transform: translateX(-8px); }
+  40% { transform: translateX(8px); }
+  60% { transform: translateX(-5px); }
+  80% { transform: translateX(5px); }
 }
 
-@keyframes login-card-out {
+@keyframes cv-card-out {
   from { opacity: 1; }
   to { opacity: 0; transform: translateY(-8px); }
 }
 
-@keyframes login-spin {
-  to { transform: rotate(360deg); }
+@keyframes cv-spin { to { transform: rotate(360deg); } }
+
+@keyframes cv-pattern-drift {
+  from { transform: translate3d(0, 0, 0); }
+  to { transform: translate3d(-18px, 14px, 0); }
 }
 
 @media (prefers-reduced-motion: no-preference) {
-  .login-bg { animation: login-bg-zoom 30s var(--login-ease) infinite alternate; }
+  .cv-brand::before { animation: cv-pattern-drift 40s linear infinite alternate; }
+  .cv-card { animation: cv-in 500ms var(--cv-ease) both; }
 
-  .login-card { animation: login-card-in 700ms var(--login-ease) both; }
-
-  .login-card.has-error {
+  .cv-card.has-error {
     animation:
-      login-card-in 700ms var(--login-ease) both,
-      login-shake 400ms var(--login-ease) 700ms both;
+      cv-in 500ms var(--cv-ease) both,
+      cv-shake 400ms var(--cv-ease) 500ms both;
   }
 
-  .login-card > * {
-    animation: login-child-in 520ms var(--login-ease) both;
-    animation-delay: calc(80ms + var(--i, 0) * 80ms);
+  .cv-card > * {
+    animation: cv-child-in 520ms var(--cv-ease) both;
+    animation-delay: calc(60ms + var(--i, 0) * 70ms);
   }
 
-  .login-card > :nth-child(1) { --i: 0; }
-  .login-card > :nth-child(2) { --i: 1; }
-  .login-card > :nth-child(3) { --i: 2; }
-  .login-card > :nth-child(4) { --i: 3; }
-  .login-card > :nth-child(5) { --i: 4; }
-  .login-card > :nth-child(6) { --i: 5; }
+  .cv-card > :nth-child(1) { --i: 0; }
+  .cv-card > :nth-child(2) { --i: 1; }
+  .cv-card > :nth-child(3) { --i: 2; }
+  .cv-card > :nth-child(4) { --i: 3; }
+  .cv-card > :nth-child(5) { --i: 4; }
+  .cv-card > :nth-child(6) { --i: 5; }
 
-  .login-input,
-  .login-submit,
-  .login-check-box,
-  .login-eye {
+  .cv-control,
+  .cv-btn,
+  .cv-toggle,
+  .cv-check-box {
     transition:
-      transform 250ms var(--login-ease),
-      opacity 250ms var(--login-ease),
-      border-color 250ms var(--login-ease),
-      box-shadow 250ms var(--login-ease),
-      background-color 250ms var(--login-ease);
+      transform 250ms var(--cv-ease),
+      border-color 250ms var(--cv-ease),
+      box-shadow 250ms var(--cv-ease),
+      background-color 250ms var(--cv-ease);
   }
 
-  .login-input:hover { transform: translateY(-1px); }
-  .login-submit:hover { transform: translateY(-2px); }
-  .login-submit:active { transform: translateY(1px); }
-  .login-check:hover .login-check-box { transform: translateY(-1px); }
-  .login-eye:hover { opacity: .78; }
+  .cv-control:hover { transform: translateY(-1px); }
+  .cv-btn:hover { transform: translateY(-2px); }
+  .cv-check:hover .cv-check-box { transform: translateY(-1px); }
+  .cv-toggle:hover { opacity: .78; }
 
-  .login-submit.is-loading .login-spinner {
-    animation: login-spin .7s linear infinite;
-  }
+  .login-submit.is-loading .login-spinner { animation: cv-spin .7s linear infinite; }
 
   /* Fade-out is opt-in: login.js adds .is-submitting only on valid submit. */
-  .login-card.is-submitting {
-    animation: login-card-out 320ms var(--login-ease) forwards;
+  .cv-card.is-submitting {
+    animation: cv-card-out 280ms var(--cv-ease) forwards;
+  }
+}
+
+@media (max-width: 860px) {
+  .cv-login {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto 1fr;
+  }
+
+  .cv-brand {
+    flex-direction: row;
+    justify-content: flex-start;
+    gap: 14px;
+    padding: 18px 20px;
+    text-align: left;
+  }
+
+  .cv-brand::after {
+    top: auto;
+    left: 0;
+    width: auto;
+    height: 3px;
+  }
+
+  .cv-seal { width: 56px; }
+  .cv-kicker, .cv-rule, .cv-since { display: none; }
+  .cv-uni { font-size: 1.1rem; }
+  .cv-sys { font-size: .85rem; }
+
+  .cv-panel {
+    justify-content: flex-start;
+    padding: 24px 16px 32px;
   }
 }
 
 @media (max-width: 480px) {
-  .login-page { padding: 20px 12px; }
-  .login-card { padding: 30px 22px 26px; }
-  .login-title { font-size: 32px; }
-  .login-subtitle { margin-bottom: 22px; }
+  .cv-card { padding: 28px 22px; }
+  .cv-app-logo { width: 64px; }
+  .cv-title { font-size: 1.5rem; }
+  .cv-label-row { align-items: flex-start; flex-direction: column; gap: 4px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cv-brand::before,
+  .cv-card,
+  .cv-card.has-error,
+  .cv-card.is-submitting,
+  .cv-card > *,
+  .login-submit.is-loading .login-spinner {
+    animation: none !important;
+  }
+
+  .cv-control,
+  .cv-btn,
+  .cv-toggle,
+  .cv-check-box { transition: none; }
 }

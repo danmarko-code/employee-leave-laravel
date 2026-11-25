@@ -3,8 +3,12 @@
 namespace Tests\Feature;
 
 use App\Models\AuditLog;
+use App\Models\LeaveRequest;
+use App\Models\LeaveType;
 use App\Models\Role;
 use App\Models\User;
+use Database\Seeders\LeaveTypeSeeder;
+use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
 use Tests\TestCase;
@@ -14,14 +18,15 @@ class DashboardActivityTest extends TestCase
     use RefreshDatabase;
 
     protected User $admin;
+
     protected User $employee;
 
     protected function setUp(): void
     {
         parent::setUp();
 
-        $this->seed(\Database\Seeders\RoleSeeder::class);
-        $this->seed(\Database\Seeders\LeaveTypeSeeder::class);
+        $this->seed(RoleSeeder::class);
+        $this->seed(LeaveTypeSeeder::class);
 
         $adminRole = Role::where('name', 'admin')->firstOrFail();
         $employeeRole = Role::where('name', 'employee')->firstOrFail();
@@ -46,75 +51,66 @@ class DashboardActivityTest extends TestCase
             AuditLog::create([
                 'user_id' => $this->employee->id,
                 'action' => 'leave.created',
-                'description' => 'Activity entry ' . $i,
+                'description' => 'Activity entry '.$i,
                 'created_at' => now()->subMinutes(30 - $i),
             ]);
         }
     }
 
-    public function test_admin_dashboard_shows_twenty_newest_entries_in_a_scrolling_card(): void
+    public function test_admin_dashboard_does_not_show_recent_activity(): void
     {
         $response = $this->actingAs($this->admin)->get(route('overview'));
 
         $response->assertOk();
-        $response->assertViewHas('recentActivity', fn ($rows) => $rows->count() === 20);
-        $response->assertSee('Recent activity');
-        $response->assertSee('View all activity');
-        $response->assertSee('class="activity-scroll"', false);
-        $response->assertSee('class="dashboard"', false);
-        $response->assertSee('class="dashboard-panels"', false);
-        $response->assertSee('role="region"', false);
-        $response->assertSee('aria-label="Recent activity"', false);
-        $response->assertSee('tabindex="0"', false);
-
-        $html = $response->getContent();
-        $this->assertSame(20, substr_count($html, 'class="act-row"'));
-        preg_match('/<main[^>]*>(.*?)<\/main>/s', $html, $matches);
-        $dashboardHtml = $matches[1] ?? $html;
-        $this->assertStringNotContainsString('style=', $dashboardHtml);
-        $this->assertStringNotContainsString('<script>', $dashboardHtml);
-
-        $rows = $response->original->getData()['recentActivity'];
-        $rows->each(fn ($log) => $this->assertTrue($log->relationLoaded('user')));
-        $this->assertSame('Activity entry 23', $rows->first()->description);
-        $this->assertSame('Activity entry 4', $rows->last()->description);
+        $response->assertDontSee('Recent activity');
+        $response->assertDontSee('View all activity');
+        $response->assertDontSee('Activity entry 23');
+        $this->assertArrayNotHasKey('recentActivity', $response->original->getData());
+        $this->assertSame(0, substr_count($response->getContent(), 'class="act-row"'));
     }
 
-    public function test_dashboard_layout_and_activity_css_match_the_polished_design(): void
+    public function test_dashboard_layout_css_matches_the_polished_design(): void
     {
-        $this->actingAs($this->admin)->get(route('overview'))->assertOk()
-            ->assertSee('Waiting for review')
-            ->assertSee('Recent activity')
-            ->assertSee('View all activity');
+        $html = $this->actingAs($this->admin)->get(route('overview'))->assertOk()
+            ->assertSee('Needs review')
+            ->assertDontSee('Recent activity')
+            ->assertDontSee('View all activity')
+            ->getContent();
 
         $css = file_get_contents(public_path('css/app.css'));
 
-        $this->assertStringContainsString('repeat(auto-fit,minmax(160px,1fr))', $css);
-        $this->assertStringContainsString('grid-template-columns:minmax(0,2fr) minmax(0,1fr)', $css);
-        $this->assertStringContainsString('@media (max-width:1099px)', $css);
-        $this->assertStringContainsString('background:#fff;border-bottom:1px solid var(--line)', $css);
-        $this->assertStringContainsString('overscroll-behavior:contain', $css);
-        $this->assertStringContainsString('.activity-scroll:focus-visible', $css);
+        $this->assertStringContainsString('--space-4:24px', $css);
+        $this->assertStringContainsString('container-type:inline-size', $css);
+        $this->assertStringContainsString('@container (min-width:820px){.dashboard-stats{grid-template-columns:repeat(5,minmax(0,1fr))}}', $css);
+        $this->assertStringContainsString('.dashboard-context{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,260px),1fr))', $css);
+        $this->assertStringContainsString('.dashboard .bal-grid{grid-template-columns:repeat(6,minmax(0,1fr))}', $css);
+        $this->assertStringContainsString('.dashboard .bal-grid>a.bal{grid-column:span 2;height:100%;align-items:center}', $css);
+        $this->assertStringContainsString('.bal-ring-slot{display:contents}', $css);
+        $this->assertStringContainsString('.dashboard .bal-grid>a.bal.stretched{display:flex;flex-direction:column;', $css);
+        $this->assertStringContainsString('.dashboard .bal-grid>a.bal:last-of-type{grid-column:span 3}', $css);
+        $this->assertStringContainsString('.who-next{grid-column:span 3;height:100%;', $css);
+        $this->assertStringContainsString('.dashboard-context{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,260px),1fr));gap:var(--space-3);align-items:stretch}', $css);
+        $this->assertStringNotContainsString('.bal-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(290px,1fr));gap:var(--space-3);align-items:start}', $css);
+        $this->assertStringContainsString('@container (max-width:620px)', $css);
+        $this->assertStringContainsString('.who-next-list{display:grid;', $css);
+        $this->assertStringNotContainsString('grid-template-columns:minmax(0,2fr) minmax(0,1fr)', $css);
+        $this->assertStringNotContainsString('dashboard-charts', $css);
+        $this->assertStringNotContainsString('activity-card', $css);
+
+        $this->assertLessThan(strpos($html, 'class="bal-grid"'), strpos($html, 'id="review-heading"'));
+        $this->assertStringNotContainsString('chart-card', $html);
     }
 
-    public function test_auth_events_are_hidden_on_the_dashboard_but_kept_in_the_full_log(): void
+    public function test_auth_events_stay_in_the_full_log(): void
     {
         foreach (['auth.login', 'auth.logout', 'auth.failed', 'auth.lockout'] as $action) {
             AuditLog::create([
                 'user_id' => $this->employee->id,
                 'action' => $action,
-                'description' => 'Sign-in noise ' . $action,
+                'description' => 'Sign-in noise '.$action,
                 'created_at' => now(),
             ]);
         }
-
-        $dashboard = $this->actingAs($this->admin)->get(route('overview'))->assertOk();
-
-        $dashboard->assertViewHas('recentActivity', fn ($rows) => $rows->count() === 20
-            && $rows->every(fn ($log) => ! str_starts_with($log->action, 'auth.')));
-        $dashboard->assertDontSee('Sign-in noise auth.login');
-        $dashboard->assertDontSee('Signed in');
-        $dashboard->assertDontSee('Sign-in failed');
 
         $fullLog = $this->actingAs($this->admin)->get(route('activity'))->assertOk();
 
@@ -125,49 +121,11 @@ class DashboardActivityTest extends TestCase
         $fullLog->assertSee('Sign-in noise auth.failed');
     }
 
-    public function test_action_codes_are_shown_as_readable_labels(): void
-    {
-        foreach (['leave.approved', 'leave.rejected', 'user.created', 'department.updated', 'custom.action_name'] as $action) {
-            AuditLog::create([
-                'user_id' => $this->admin->id,
-                'action' => $action,
-                'description' => 'Polished event recorded.',
-                'created_at' => now(),
-            ]);
-        }
-
-        $html = $this->actingAs($this->admin)->get(route('overview'))->assertOk()->getContent();
-
-        foreach (['Approved', 'Rejected', 'User created', 'Department updated', 'Custom Action Name'] as $label) {
-            $this->assertStringContainsString($label, $html);
-        }
-
-        foreach (['leave.approved', 'leave.rejected', 'user.created', 'department.updated', 'custom.action_name'] as $code) {
-            $this->assertStringNotContainsString($code, $html);
-        }
-    }
-
-    public function test_activity_details_drop_brackets_and_do_not_repeat_the_actor(): void
-    {
-        AuditLog::create([
-            'user_id' => $this->admin->id,
-            'action' => 'user.updated',
-            'description' => 'Updated account for [admin@company.test] and [Team Member].',
-            'created_at' => now(),
-        ]);
-
-        $html = $this->actingAs($this->admin)->get(route('overview'))->assertOk()->getContent();
-
-        $this->assertStringContainsString('Updated account for and Team Member.', $html);
-        $this->assertStringNotContainsString('[admin@company.test]', $html);
-        $this->assertStringNotContainsString('[Team Member]', $html);
-    }
-
     public function test_full_user_names_are_shown_in_dashboard_tables(): void
     {
-        $leaveType = \App\Models\LeaveType::firstOrFail();
+        $leaveType = LeaveType::firstOrFail();
 
-        \App\Models\LeaveRequest::create([
+        LeaveRequest::create([
             'user_id' => $this->employee->id,
             'leave_type_id' => $leaveType->id,
             'start_date' => now()->addDay()->toDateString(),
@@ -177,29 +135,18 @@ class DashboardActivityTest extends TestCase
             'status' => 'pending',
         ]);
 
-        AuditLog::create([
-            'user_id' => $this->admin->id,
-            'action' => 'leave.approved',
-            'description' => 'Approved the request.',
-            'created_at' => now(),
-        ]);
-
         $html = $this->actingAs($this->admin)->get(route('overview'))->assertOk()->getContent();
 
         $this->assertStringContainsString('<b>Team Member</b>', $html);
-        $this->assertStringContainsString('>Admin One</td>', $html);
         $this->assertStringNotContainsString('<b>admin</b>', $html);
     }
 
-    public function test_empty_dashboard_activity_state_is_shown(): void
+    public function test_empty_activity_page_state_is_shown(): void
     {
         AuditLog::query()->delete();
 
-        $response = $this->actingAs($this->admin)->get(route('overview'));
-
-        $response->assertOk();
-        $response->assertSee('No activity yet.');
-        $this->assertSame(0, substr_count($response->getContent(), 'class="act-row"'));
+        $this->actingAs($this->admin)->get(route('activity'))->assertOk()
+            ->assertSee('No activity matches these filters.');
     }
 
     public function test_employee_dashboard_receives_no_activity_data(): void
@@ -218,13 +165,13 @@ class DashboardActivityTest extends TestCase
     {
         $html = $this->actingAs($this->admin)->get(route('activity'))->assertOk()->getContent();
 
-        $this->assertStringContainsString('<a class="nav-item active" href="' . route('overview') . '"', $html);
+        $this->assertStringContainsString('<a class="nav-item active" href="'.route('dashboard').'"', $html);
         $this->assertStringNotContainsString('<span>Activity</span>', $html);
     }
 
     public function test_employee_gets_forbidden_on_the_full_activity_page(): void
     {
-        $this->actingAs($this->employee)->get(route('activity'))->assertRedirect(route('dashboard'));
+        $this->actingAs($this->employee)->get(route('activity'))->assertForbidden();
     }
 
     public function test_full_activity_page_keeps_filters_and_capped_pagination(): void
@@ -235,7 +182,7 @@ class DashboardActivityTest extends TestCase
             ->assertViewHas('logs', fn ($logs) => $logs->perPage() === 25 && $logs->total() === 23);
 
         $this->actingAs($this->admin)
-            ->get('/activity?action=leave.created&user_id=' . $this->employee->id)
+            ->get('/activity?action=leave.created&user_id='.$this->employee->id)
             ->assertOk()
             ->assertViewHas('logs', fn ($logs) => $logs->total() === 23);
 
@@ -262,7 +209,7 @@ class DashboardActivityTest extends TestCase
             'created_at' => now(),
         ]);
 
-        $html = $this->actingAs($this->admin)->get(route('overview'))->assertOk()->getContent();
+        $html = $this->actingAs($this->admin)->get(route('activity'))->assertOk()->getContent();
 
         $this->assertStringNotContainsString('<script>alert(1)</script>', $html);
         $this->assertStringNotContainsString('<script>alert(2)</script>', $html);
