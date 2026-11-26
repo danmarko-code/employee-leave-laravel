@@ -1,15 +1,15 @@
 @php
   $ringR = 42;
   $ringC = 2 * pi() * $ringR;
-  $total = max((float) $allocated, 1);
-  $avail = max((float) $avail, 0);
-  $pending = (float) $pending;
-  $used = (float) $used;
+  $total = max((float) ($allocated ?? 0), 0);
+  $avail = max((float) ($avail ?? 0), 0);
+  $pending = max((float) ($pending ?? 0), 0);
+  $used = max((float) ($used ?? 0), 0);
   $stretched = ! empty($stretched ?? false);
 
-  $lenAvail = ($ringC * $avail) / $total;
-  $lenPending = ($ringC * $pending) / $total;
-  $lenUsed = ($ringC * $used) / $total;
+  $lenAvail = $total > 0 ? ($ringC * $avail) / $total : 0;
+  $lenPending = $total > 0 ? ($ringC * $pending) / $total : 0;
+  $lenUsed = $total > 0 ? ($ringC * $used) / $total : 0;
 @endphp
 
 @if (isset($href))

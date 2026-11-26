@@ -10,6 +10,7 @@ use App\Models\AuditLog;
 use App\Models\Department;
 use App\Models\Role;
 use App\Models\User;
+use App\Services\LeaveBalanceService;
 use App\Support\AdminGuard;
 use App\Support\TemporaryPassword;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
@@ -37,10 +38,10 @@ class UserController extends Controller
 
         if ($q !== '') {
             $query->where(function ($inner) use ($q) {
-                $inner->where('name', 'like', '%' . $q . '%')
-                    ->orWhere('email', 'like', '%' . $q . '%')
+                $inner->where('name', 'like', '%'.$q.'%')
+                    ->orWhere('email', 'like', '%'.$q.'%')
                     ->orWhereHas('position', fn ($positionQuery) => $positionQuery
-                        ->where('name', 'like', '%' . $q . '%'));
+                        ->where('name', 'like', '%'.$q.'%'));
             });
         }
 
@@ -81,6 +82,10 @@ class UserController extends Controller
             'is_active' => $request->boolean('is_active', true),
             'must_change_password' => true,
         ]);
+
+        if ($user->is_active) {
+            app(LeaveBalanceService::class)->ensureBalancesForUser($user);
+        }
 
         AuditLog::create([
             'user_id' => $request->user()->id,

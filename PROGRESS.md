@@ -47,3 +47,4 @@ Revision: dashboard upcoming card aligned
 Revision: unpaid leave matched to upcoming card
 Revision: unpaid leave height matched to upcoming card
 Revision: unpaid leave inner layout rebuilt
+Revision: DOLE statutory leave types preset done

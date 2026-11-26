@@ -54,8 +54,16 @@ class DashboardController extends Controller
             ->orderBy('name')
             ->get();
 
+        $filteredTypes = $balanceTypes->filter(function (LeaveType $leaveType): bool {
+            if ($leaveType->is_statutory && (float) ($leaveType->allocated_days_total ?? 0) <= 0) {
+                return false;
+            }
+
+            return true;
+        });
+
         $balanceRings = $balanceTypes->sum('current_year_balance_count') > 0
-            ? $balanceTypes->map(fn (LeaveType $leaveType): array => [
+            ? $filteredTypes->map(fn (LeaveType $leaveType): array => [
                 'id' => $leaveType->id,
                 'name' => $leaveType->name,
                 'allocated' => (float) ($leaveType->allocated_days_total ?? 0),
@@ -64,7 +72,7 @@ class DashboardController extends Controller
                 'available' => max(0, (float) ($leaveType->allocated_days_total ?? 0)
                     - (float) ($leaveType->used_days_total ?? 0)
                     - (float) ($leaveType->pending_days_total ?? 0)),
-            ])->all()
+            ])->values()->all()
             : [];
 
         $upcomingLeave = LeaveRequest::with(['user', 'leaveType'])

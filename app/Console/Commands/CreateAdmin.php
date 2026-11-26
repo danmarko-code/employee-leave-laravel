@@ -5,6 +5,7 @@ namespace App\Console\Commands;
 use App\Models\AuditLog;
 use App\Models\Role;
 use App\Models\User;
+use App\Services\LeaveBalanceService;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
@@ -43,6 +44,7 @@ class CreateAdmin extends Command
             foreach ($nameValidator->errors()->all() as $error) {
                 $this->error($error);
             }
+
             return self::FAILURE;
         }
 
@@ -56,6 +58,7 @@ class CreateAdmin extends Command
             foreach ($emailValidator->errors()->all() as $error) {
                 $this->error($error);
             }
+
             return self::FAILURE;
         }
 
@@ -65,6 +68,7 @@ class CreateAdmin extends Command
 
         if ($password !== $passwordConfirmation) {
             $this->error('Passwords do not match.');
+
             return self::FAILURE;
         }
 
@@ -84,6 +88,7 @@ class CreateAdmin extends Command
             foreach ($passwordValidator->errors()->all() as $error) {
                 $this->error($error);
             }
+
             return self::FAILURE;
         }
 
@@ -107,6 +112,8 @@ class CreateAdmin extends Command
             'is_active' => true,
             'email_verified_at' => now(),
         ]);
+
+        app(LeaveBalanceService::class)->ensureBalancesForUser($user);
 
         // 6. Record audit log entry
         AuditLog::create([

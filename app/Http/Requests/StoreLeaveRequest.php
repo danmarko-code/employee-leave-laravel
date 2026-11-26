@@ -54,6 +54,7 @@ class StoreLeaveRequest extends FormRequest
 
             if ($user->isAdmin() && ! AdminGuard::hasOtherActiveAdmin($user)) {
                 $v->errors()->add('leave_type_id', 'No other administrator is available to review this request. Ask to have a second administrator added.');
+
                 return;
             }
 
@@ -63,6 +64,7 @@ class StoreLeaveRequest extends FormRequest
 
             if (! $leaveType || ! $leaveType->is_active) {
                 $v->errors()->add('leave_type_id', 'The selected leave type is not available.');
+
                 return;
             }
 
@@ -82,6 +84,7 @@ class StoreLeaveRequest extends FormRequest
 
             if ($workingDays === 0) {
                 $v->errors()->add('start_date', 'The selected date range contains no working days (weekends only).');
+
                 return;
             }
 
@@ -100,12 +103,14 @@ class StoreLeaveRequest extends FormRequest
                 })->first();
 
             if ($overlap) {
-                $v->errors()->add('start_date', 'These dates overlap with an existing ' . $overlap->leaveType->name . ' request (' . $overlap->start_date->format('M d') . ' – ' . $overlap->end_date->format('M d') . ').');
+                $v->errors()->add('start_date', 'These dates overlap with an existing '.$overlap->leaveType->name.' request ('.$overlap->start_date->format('M d').' – '.$overlap->end_date->format('M d').').');
+
                 return;
             }
 
             // Check user balance
             $year = (int) $start->format('Y');
+            $allocated = $leaveType->grant_mode === 'admin' ? 0 : $leaveType->days_allowed;
             $balance = LeaveBalance::firstOrCreate(
                 [
                     'user_id' => $user->id,
@@ -113,7 +118,7 @@ class StoreLeaveRequest extends FormRequest
                     'year' => $year,
                 ],
                 [
-                    'allocated_days' => $leaveType->days_allowed,
+                    'allocated_days' => $allocated,
                     'used_days' => 0,
                     'pending_days' => 0,
                 ]

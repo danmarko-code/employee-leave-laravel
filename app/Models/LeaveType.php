@@ -18,6 +18,11 @@ class LeaveType extends Model
         'requires_doc',
         'is_active',
         'color',
+        'day_basis',
+        'grant_mode',
+        'is_statutory',
+        'legal_basis',
+        'notes',
     ];
 
     protected function casts(): array
@@ -27,6 +32,7 @@ class LeaveType extends Model
             'is_paid' => 'boolean',
             'requires_doc' => 'boolean',
             'is_active' => 'boolean',
+            'is_statutory' => 'boolean',
         ];
     }
 

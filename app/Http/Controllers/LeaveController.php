@@ -11,6 +11,7 @@ use App\Models\LeaveRequest;
 use App\Models\LeaveType;
 use App\Models\RequestHistory;
 use App\Models\User;
+use App\Services\LeaveBalanceService;
 use App\Support\AdminGuard;
 use App\Support\AttachmentFile;
 use App\Support\PendingApprovalCount;
@@ -34,21 +35,7 @@ class LeaveController extends Controller
      */
     private function ensureBalances(User $user, int $year): void
     {
-        $types = LeaveType::where('is_active', true)->get();
-        foreach ($types as $type) {
-            LeaveBalance::firstOrCreate(
-                [
-                    'user_id' => $user->id,
-                    'leave_type_id' => $type->id,
-                    'year' => $year,
-                ],
-                [
-                    'allocated_days' => $type->days_allowed,
-                    'used_days' => 0,
-                    'pending_days' => 0,
-                ]
-            );
-        }
+        app(LeaveBalanceService::class)->ensureBalancesForUser($user, $year);
     }
 
     /**
@@ -71,7 +58,14 @@ class LeaveController extends Controller
             ->where('year', $currentYear)
             ->with('leaveType')
             ->whereHas('leaveType', fn ($q) => $q->where('is_active', true))
-            ->get();
+            ->get()
+            ->filter(function (LeaveBalance $bal): bool {
+                if ($bal->leaveType?->is_statutory && (float) $bal->allocated_days <= 0) {
+                    return false;
+                }
+
+                return true;
+            });
 
         $recentRequests = LeaveRequest::where('user_id', $user->id)
             ->with('leaveType')
@@ -123,7 +117,7 @@ class LeaveController extends Controller
                 ->where('leave_type_id', $type->id)
                 ->where('year', $currentYear)
                 ->first();
-            $type->available_days = $bal ? $bal->available_days : $type->days_allowed;
+            $type->available_days = $bal ? $bal->available_days : ($type->grant_mode === 'admin' ? 0 : $type->days_allowed);
 
             return $type;
         });

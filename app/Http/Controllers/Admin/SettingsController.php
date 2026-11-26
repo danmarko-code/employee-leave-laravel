@@ -17,6 +17,7 @@ use App\Models\Department;
 use App\Models\LeaveType;
 use App\Models\Position;
 use App\Models\Role;
+use App\Services\LeaveBalanceService;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -179,12 +180,21 @@ class SettingsController extends Controller
         $this->authorize('create', LeaveType::class);
 
         $data = $request->validated();
+        $data['day_basis'] = $request->input('day_basis', 'working');
+        $data['grant_mode'] = $request->input('grant_mode', 'automatic');
         $data['is_paid'] = $request->boolean('is_paid', true);
         $data['requires_doc'] = $request->boolean('requires_doc', false);
         $data['is_active'] = $request->boolean('is_active', true);
+        $data['is_statutory'] = $request->boolean('is_statutory', false);
         $data['color'] = ! empty($data['color']) ? $data['color'] : '#0F8B8D';
+        $data['legal_basis'] = ! empty($data['legal_basis']) ? $data['legal_basis'] : null;
+        $data['notes'] = ! empty($data['notes']) ? $data['notes'] : null;
 
         $leaveType = LeaveType::create($data);
+
+        if ($leaveType->is_active) {
+            app(LeaveBalanceService::class)->ensureActiveBalances();
+        }
 
         $this->audit(
             $request,
@@ -200,12 +210,21 @@ class SettingsController extends Controller
         $this->authorize('update', $leaveType);
 
         $data = $request->validated();
+        $data['day_basis'] = $request->input('day_basis', $leaveType->day_basis ?? 'working');
+        $data['grant_mode'] = $request->input('grant_mode', $leaveType->grant_mode ?? 'automatic');
         $data['is_paid'] = $request->boolean('is_paid', false);
         $data['requires_doc'] = $request->boolean('requires_doc', false);
         $data['is_active'] = $request->boolean('is_active', false);
+        $data['is_statutory'] = $request->boolean('is_statutory', false);
         $data['color'] = ! empty($data['color']) ? $data['color'] : '#0F8B8D';
+        $data['legal_basis'] = ! empty($data['legal_basis']) ? $data['legal_basis'] : null;
+        $data['notes'] = ! empty($data['notes']) ? $data['notes'] : null;
 
         $leaveType->update($data);
+
+        if ($leaveType->is_active) {
+            app(LeaveBalanceService::class)->ensureActiveBalances();
+        }
 
         $this->audit(
             $request,
@@ -223,10 +242,14 @@ class SettingsController extends Controller
         $active = $request->boolean('is_active');
         $leaveType->update(['is_active' => $active]);
 
+        if ($active) {
+            app(LeaveBalanceService::class)->ensureActiveBalances();
+        }
+
         $this->audit(
             $request,
             'leave_type.toggled',
-            ($active ? 'Activated' : 'Deactivated') . " leave type [{$leaveType->name}]."
+            ($active ? 'Activated' : 'Deactivated')." leave type [{$leaveType->name}]."
         );
 
         return redirect()->route('settings.leave-types')->with('status', 'Leave type status updated.');

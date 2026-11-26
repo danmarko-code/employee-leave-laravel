@@ -27,11 +27,20 @@
         <select class="input" id="f-type" name="leave_type_id" required>
           <option value="" disabled {{ old('leave_type_id') ? '' : 'selected' }}>Select a leave type</option>
           @foreach ($leaveTypes as $type)
+            @php
+              $remaining = (int) $type->available_days;
+              $isAdminGrantZero = $type->grant_mode === 'admin' && (float) $type->available_days <= 0;
+            @endphp
             <option value="{{ $type->id }}"
                     data-available="{{ $type->available_days }}"
                     data-reqdoc="{{ $type->requires_doc ? '1' : '0' }}"
+                    {{ $isAdminGrantZero ? 'disabled' : '' }}
                     {{ old('leave_type_id') == $type->id ? 'selected' : '' }}>
-              {{ $type->name }} ({{ (int)$type->available_days }} {{ Str::plural('day', $type->available_days) }} available)
+              @if ($isAdminGrantZero)
+                {{ $type->name }} (0 {{ Str::plural('day', 0) }} remaining — Ask HR to grant this leave)
+              @else
+                {{ $type->name }} ({{ $remaining }} {{ Str::plural('day', $remaining) }} remaining)
+              @endif
             </option>
           @endforeach
         </select>
