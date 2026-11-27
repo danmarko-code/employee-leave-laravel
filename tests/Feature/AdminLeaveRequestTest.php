@@ -10,6 +10,8 @@ use App\Models\RequestHistory;
 use App\Models\Role;
 use App\Models\User;
 use Carbon\Carbon;
+use Database\Seeders\LeaveTypeSeeder;
+use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
 use Tests\TestCase;
@@ -19,15 +21,17 @@ class AdminLeaveRequestTest extends TestCase
     use RefreshDatabase;
 
     protected User $admin;
+
     protected Role $adminRole;
+
     protected LeaveType $annual;
 
     protected function setUp(): void
     {
         parent::setUp();
 
-        $this->seed(\Database\Seeders\RoleSeeder::class);
-        $this->seed(\Database\Seeders\LeaveTypeSeeder::class);
+        $this->seed(RoleSeeder::class);
+        $this->seed(LeaveTypeSeeder::class);
 
         $this->adminRole = Role::where('name', 'admin')->firstOrFail();
         $this->annual = LeaveType::where('code', 'annual')->firstOrFail();
@@ -43,7 +47,6 @@ class AdminLeaveRequestTest extends TestCase
 
         $this->actingAs($this->admin)->get('/apply')->assertOk();
         $this->actingAs($this->admin)->get('/requests')->assertOk();
-        $this->actingAs($this->admin)->get('/my-balances')->assertOk();
     }
 
     public function test_admin_without_another_active_admin_cannot_submit_leave(): void
@@ -182,7 +185,7 @@ class AdminLeaveRequestTest extends TestCase
     {
         return User::create([
             'name' => $name,
-            'email' => strtolower(str_replace(' ', '.', $name)) . '@company.test',
+            'email' => strtolower(str_replace(' ', '.', $name)).'@company.test',
             'password' => Hash::make('StrongPass123!@#'),
             'role_id' => $this->adminRole->id,
             'is_active' => true,

@@ -245,25 +245,17 @@ class AdminPagesTest extends TestCase
         preg_match('/<nav class="nav".*?<\/nav>/s', $employeeNav, $employeeMatches);
         $employeeSidebar = $employeeMatches[0] ?? '';
 
-        foreach (['Dashboard', 'My requests', 'Balances', 'Profile'] as $label) {
+        foreach (['Dashboard', 'My requests', 'Profile'] as $label) {
             $this->assertStringContainsString('<span>'.$label.'</span>', $employeeSidebar);
         }
 
-        foreach (['Applications', 'Approvals', 'Reports', 'Settings'] as $label) {
+        foreach (['Applications', 'Approvals', 'Balances', 'Reports', 'Settings'] as $label) {
             $this->assertStringNotContainsString('<span>'.$label.'</span>', $employeeSidebar);
         }
 
         preg_match_all('/<svg class="ic" viewBox="0 0 24 24" aria-hidden="true">(.*?)<\/svg>/s', $employeeSidebar, $employeeIcons);
-        $this->assertCount(4, $employeeIcons[1] ?? []);
-        $this->assertCount(4, array_unique($employeeIcons[1] ?? []));
-    }
-
-    public function test_employee_balances_page_marks_balances_nav_as_active(): void
-    {
-        $html = $this->actingAs($this->employee)->get(route('balances.employee'))->assertOk()->getContent();
-
-        $this->assertStringContainsString('<a class="nav-item active" href="'.route('balances.employee').'"', $html);
-        $this->assertStringNotContainsString('<a class="nav-item active" href="'.route('requests').'"', $html);
+        $this->assertCount(3, $employeeIcons[1] ?? []);
+        $this->assertCount(3, array_unique($employeeIcons[1] ?? []));
     }
 
     public function test_non_admin_cannot_open_admin_urls(): void

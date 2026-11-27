@@ -327,7 +327,9 @@ a.bal{color:inherit;text-decoration:none}
 @container (max-width:900px){.dashboard .bal-grid{grid-template-columns:repeat(4,minmax(0,1fr))}.dashboard .bal-grid>a.bal,.dashboard .bal-grid>a.bal:last-of-type,.who-next{grid-column:span 2}}
 @container (max-width:620px){.dashboard .bal-grid{grid-template-columns:minmax(0,1fr)}.dashboard .bal-grid>a.bal,.dashboard .bal-grid>a.bal:last-of-type,.who-next{grid-column:auto;height:auto}}
 .who-next:hover{transform:none;background:var(--glass);box-shadow:var(--shadow-card)}
-.who-next-list{display:grid;gap:var(--space-2);max-height:calc(var(--space-4) * 9);overflow-y:auto;overscroll-behavior:contain;scrollbar-gutter:stable;scrollbar-width:thin;scrollbar-color:rgba(5,46,11,.25) transparent}
+.who-next:hover .datebox{background:rgba(1,128,2,.13);color:var(--lagoon-700)}
+.who-next .next-row:hover .datebox{background:var(--lagoon-700);color:#fff}
+.who-next-list{display:grid;align-content:start;gap:var(--space-2);flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain;scrollbar-gutter:stable;scrollbar-width:thin;scrollbar-color:rgba(5,46,11,.25) transparent}
 .who-next-list:focus-visible{outline:2px solid var(--lagoon);outline-offset:3px;border-radius:var(--r-s)}
 .who-next-list::-webkit-scrollbar{width:8px}
 .who-next-list::-webkit-scrollbar-track{background:transparent}

@@ -23,7 +23,6 @@
   ] : [
     ['route' => 'dashboard', 'url' => '/dashboard', 'label' => 'Dashboard', 'icon' => 'grid'],
     ['route' => 'requests', 'url' => '/requests', 'label' => 'My requests', 'icon' => 'file'],
-    ['route' => 'balances.employee', 'url' => '/my-balances', 'label' => 'Balances', 'icon' => 'wallet'],
     ['route' => 'profile', 'url' => '/profile', 'label' => 'Profile', 'icon' => 'user'],
   ];
 

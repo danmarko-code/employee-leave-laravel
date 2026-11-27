@@ -83,26 +83,6 @@ class LeaveController extends Controller
     }
 
     /**
-     * Show the signed-in employee's leave balances.
-     */
-    public function balances(): View
-    {
-        /** @var User $user */
-        $user = Auth::user();
-        $currentYear = (int) date('Y');
-        $this->ensureBalances($user, $currentYear);
-
-        $balances = LeaveBalance::where('user_id', $user->id)
-            ->where('year', $currentYear)
-            ->with('leaveType')
-            ->whereHas('leaveType', fn ($q) => $q->where('is_active', true))
-            ->orderBy('id')
-            ->get();
-
-        return view('employee.balances', compact('balances', 'currentYear'));
-    }
-
-    /**
      * Show leave application form.
      */
     public function create(): View

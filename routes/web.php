@@ -44,7 +44,6 @@ Route::middleware(['auth', 'no-store'])->group(function () {
         Route::post('/requests/{leaveRequest}/cancel', [LeaveController::class, 'cancel'])->name('requests.cancel');
         Route::get('/requests/{leaveRequest}/attachment', [LeaveController::class, 'downloadAttachment'])->name('requests.attachment');
         Route::get('/requests/{leaveRequest}/attachment/preview', [LeaveController::class, 'previewAttachment'])->name('requests.attachment.preview');
-        Route::get('/my-balances', [LeaveController::class, 'balances'])->name('balances.employee');
         Route::get('/profile', [LeaveController::class, 'profile'])->name('profile');
         Route::post('/profile', [LeaveController::class, 'updateProfile'])->name('profile.update');
     });
